@@ -551,7 +551,10 @@ ${this.data.problems ? `\n【遇到的问题与困难】\n${this.data.problems}`
         return // 这个错误已经在 checkAndRecordUsage 中处理了
       } else if (error.message.includes('cloud function not found') || error.message.includes('云函数未部署')) {
         errorTitle = '☁️ 云函数未部署'
-        errorContent = 'apiProxy云函数尚未部署到云端\n\n请在微信开发者工具中右键点击 cloudfunctions/apiProxy 文件夹，选择"上传并部署：云端安装依赖"'
+        errorContent = 'apiProxy云函数尚未部署到云端\n\n【请按以下步骤操作】\n1. 在微信开发者工具左侧找到 cloudfunctions/apiProxy\n2. 右键点击 → 选择"上传并部署：云端安装依赖"\n3. 等待部署完成后重新生成周报'
+      } else if (error.message.includes('-504003') || error.message.includes('timed out') || error.message.includes('TIME_LIMIT_EXCEEDED')) {
+        errorTitle = '⏱️ 云函数调用超时'
+        errorContent = '可能原因：\n\n1. 【最可能】apiProxy云函数未部署\n   → 请在开发者工具右键 cloudfunctions/apiProxy\n   → 选择"上传并部署：云端安装依赖"\n\n2. 云函数执行出错\n   → 查看开发者工具控制台的错误信息\n\n3. 网络不稳定\n   → 检查手机网络连接'
       } else {
         errorContent = `${error.message}\n\n可能原因：\n1. 网络连接问题\n2. 云函数未部署\n3. DeepSeek 服务暂时不可用`
       }
