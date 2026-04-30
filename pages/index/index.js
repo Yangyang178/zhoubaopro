@@ -336,7 +336,7 @@ Page({
     this.setData({ isGenerating: true });
 
     console.log('========================================')
-    console.log('🚀 开始调用 DeepSeek AI (前端直连模式)')
+    console.log('🚀 开始调用 DeepSeek AI (通过云函数代理)')
     console.log('========================================')
 
     try {
@@ -473,7 +473,6 @@ ${this.data.problems ? `\n【遇到的问题与困难】\n${this.data.problems}`
 - 不要说"以下是生成的周报"、"好的，我来帮你写"等废话
 - 内容必须基于用户提供的信息进行提炼升华，禁止编造数据`
 
-
       console.log('📝 Prompt 构建完成')
       console.log('📍 岗位:', positionName)
       console.log('📊 工作内容长度:', this.data.weeklyWork.length, '字符')
@@ -484,58 +483,30 @@ ${this.data.problems ? `\n【遇到的问题与困难】\n${this.data.problems}`
       console.log('📤 通过云函数代理调用 DeepSeek API')
       console.log('🔒 安全提示：API Key不在前端代码中暴露')
 
-      try {
-        const res = await wx.cloud.callFunction({
-          name: 'apiProxy',
+      const res = await wx.cloud.callFunction({
+        name: 'apiProxy',
+        data: {
+          action: 'generateReport',
           data: {
-            action: 'generateReport',
-            data: {
-              systemPrompt: systemPrompt,
-              userPrompt: prompt
-            }
-          },
-          timeout: 65000 // 云函数超时时间稍长于API超时
-        })
+            systemPrompt: systemPrompt,
+            userPrompt: prompt
+          }
+        },
+        timeout: 65000 // 云函数超时时间稍长于API超时
+      })
 
-        const endTime = Date.now()
-        const duration = ((endTime - startTime) / 1000).toFixed(2)
+      const endTime = Date.now()
+      const duration = ((endTime - startTime) / 1000).toFixed(2)
 
-        if (res.result && res.result.success) {
-          const reportContent = res.result.data.content
+      if (res.result && res.result.success) {
+        const reportContent = res.result.data.content
 
-          console.log('✅ 云函数调用成功！')
-          console.log(`⏱️ 总耗时: ${duration}秒（含网络传输）`)
-          console.log(`📄 内容长度: ${reportContent.length}字符`)
-          console.log(`📊 Token使用:`, res.result.data.usage)
-          console.log(`📄 预览:`, reportContent.substring(0, 80) + '...')
+        console.log('✅ 云函数调用成功！')
+        console.log(`⏱️ 总耗时: ${duration}秒（含网络传输）`)
+        console.log(`📄 内容长度: ${reportContent.length}字符`)
+        console.log(`📊 Token使用:`, res.result.data.usage)
+        console.log(`📄 预览:`, reportContent.substring(0, 80) + '...')
 
-          resolve(reportContent)
-        } else {
-          const errorMsg = res.result?.error || '云函数返回异常'
-          console.error('❌ 云函数返回错误:', errorMsg)
-          reject(new Error(errorMsg))
-        }
-
-      } catch (cloudError) {
-        const endTime = Date.now()
-        const duration = ((endTime - startTime) / 1000).toFixed(2)
-
-        console.error(`❌ 云函数调用失败 (${duration}秒)`)
-        console.error('错误详情:', cloudError.errMsg || cloudError.message)
-
-        let errorMsg = cloudError.errMsg || cloudError.message || '云函数调用失败'
-
-        if (errorMsg.includes('timeout')) {
-          errorMsg = '请求超时，AI服务响应较慢，请稍后重试'
-        } else if (errorMsg.includes('request:fail') || errorMsg.includes('-1')) {
-          errorMsg = '无法连接到云服务器，请检查网络连接'
-        } else if (errorMsg.includes('cloud function not found')) {
-          errorMsg = '云函数未部署或名称错误，请检查apiProxy是否已上传'
-        }
-
-        reject(new Error(errorMsg))
-      }
-    }).then((reportContent) => {
         this.setData({
           generatedReport: reportContent,
           showResult: true,
@@ -556,36 +527,48 @@ ${this.data.problems ? `\n【遇到的问题与困难】\n${this.data.problems}`
         console.log('✅ 全部流程完成！用户可以看到结果了')
         console.log('========================================')
         
-      }).catch((error) => {
-        console.error('=== 生成过程出错 ===')
-        console.error('错误信息:', error.message)
-        
-        this.setData({ isGenerating: false })
-
-        wx.showModal({
-          title: '⚠️ 生成失败',
-          content: `${error.message}\n\n可能原因：\n1. 网络连接问题\n2. API Key 无效或余额不足\n3. DeepSeek 服务暂时不可用`,
-          showCancel: true,
-          cancelText: '取消',
-          confirmText: '重试',
-          success: (res) => {
-            if (res.confirm) {
-              this.generateReport()
-            }
-          }
-        })
-      })
+      } else {
+        const errorMsg = res.result?.error || '云函数返回异常'
+        throw new Error(errorMsg)
+      }
 
     } catch (error) {
-      console.error('=== 异常错误 ===')
-      console.error(error)
+      console.error('=== 生成过程出错 ===')
+      console.error('错误信息:', error.message)
       
       this.setData({ isGenerating: false })
 
-      wx.showToast({
-        title: '发生未知错误',
-        icon: 'none',
-        duration: 2000
+      let errorTitle = '⚠️ 生成失败'
+      let errorContent = ''
+      
+      if (error.message.includes('timeout') || error.message.includes('超时')) {
+        errorTitle = '⏰ 请求超时'
+        errorContent = 'AI服务响应较慢，可能是网络拥堵或服务器繁忙\n\n建议：稍后重试或简化输入内容'
+      } else if (error.message.includes('request:fail') || error.message.includes('无法连接')) {
+        errorTitle = '🌐 网络连接失败'
+        errorContent = '无法连接到服务器\n\n建议：检查手机网络（WiFi/4G/5G）并重试'
+      } else if (error.message.includes('每日生成次数')) {
+        return // 这个错误已经在 checkAndRecordUsage 中处理了
+      } else if (error.message.includes('cloud function not found') || error.message.includes('云函数未部署')) {
+        errorTitle = '☁️ 云函数未部署'
+        errorContent = 'apiProxy云函数尚未部署到云端\n\n请在微信开发者工具中右键点击 cloudfunctions/apiProxy 文件夹，选择"上传并部署：云端安装依赖"'
+      } else {
+        errorContent = `${error.message}\n\n可能原因：\n1. 网络连接问题\n2. 云函数未部署\n3. DeepSeek 服务暂时不可用`
+      }
+      
+      wx.showModal({
+        title: errorTitle,
+        content: errorContent,
+        showCancel: true,
+        cancelText: '取消',
+        confirmText: '重试',
+        success: (res) => {
+          if (res.confirm) {
+            setTimeout(() => {
+              this.generateReport()
+            }, 500)
+          }
+        }
       })
     }
   },
