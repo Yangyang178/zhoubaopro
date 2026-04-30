@@ -1,0 +1,1 @@
+{"name": "apiProxy", "version": "1.0.0", "description": "DeepSeek API代理云函数 - 安全地处理AI生成请求", "main": "index.js", "dependencies": {"wx-server-sdk": "~2.6.3"}}
