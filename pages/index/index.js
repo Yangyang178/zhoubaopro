@@ -31,8 +31,10 @@ Page({
     canGetUserProfile: true,
     getUserProfileCooldown: 2000, // 2秒冷却时间
 
-    // DeepSeek API 配置（已迁移至云函数 apiProxy，前端不再需要）
-    apiKey: '', // 安全提示：API Key已迁移到云端，此处留空
+    // DeepSeek API 配置（前端直连模式）
+    // 注意：由于微信云函数免费版限制3秒超时，无法满足AI生成需求（需5-15秒）
+    // 因此采用前端直连模式，API Key在此处配置
+    apiKey: 'sk-95d6993d5f7d49bd8c5c6d94288e6300',
 
     // 每日生成次数限制
     dailyLimit: 5,
@@ -479,86 +481,123 @@ ${this.data.problems ? `\n【遇到的问题与困难】\n${this.data.problems}`
 
       const startTime = Date.now()
 
-      // 通过云函数 apiProxy 安全调用 DeepSeek API（API Key已迁移到云端）
-      console.log('📤 通过云函数代理调用 DeepSeek API')
-      console.log('🔒 安全提示：API Key不在前端代码中暴露')
+      // 直接调用 DeepSeek API（前端直连模式）
+      // 原因：微信云函数免费版限制3秒超时，无法满足AI生成需求（需5-15秒）
+      console.log('📤 直接调用 DeepSeek API (前端直连模式)')
+      console.log('⚠️ 注意：API Key在前端代码中，请勿将代码公开分享')
 
-      const res = await wx.cloud.callFunction({
-        name: 'apiProxy',
-        data: {
-          action: 'generateReport',
+      const reportContent = await new Promise((resolve, reject) => {
+        wx.request({
+          url: 'https://api.deepseek.com/v1/chat/completions',
+          method: 'POST',
+          timeout: 60000, // 60秒超时（AI生成需要较长时间）
+          header: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.data.apiKey}`
+          },
           data: {
-            systemPrompt: systemPrompt,
-            userPrompt: prompt
+            model: 'deepseek-chat',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: prompt }
+            ],
+            temperature: 0.7,
+            max_tokens: 2000,
+            top_p: 0.85,
+            frequency_penalty: 0.4,
+            presence_penalty: 0.5
+          },
+          success: (res) => {
+            const endTime = Date.now()
+            const duration = ((endTime - startTime) / 1000).toFixed(2)
+
+            console.log(`✅ API 请求成功！耗时: ${duration}秒`)
+            console.log('📥 HTTP 状态码:', res.statusCode)
+
+            if (res.statusCode === 200 && res.data && res.data.choices && res.data.choices.length > 0) {
+              const content = res.data.choices[0].message.content.trim()
+
+              console.log('🎉 周报生成成功！')
+              console.log(`📄 内容长度: ${content.length}字符`)
+              console.log('📄 预览:', content.substring(0, 80) + '...')
+
+              resolve(content)
+            } else if (res.data && res.data.error) {
+              console.error('❌ DeepSeek API 错误:', res.data.error)
+              reject(new Error(`DeepSeek API错误 [${res.data.error.code}]: ${res.data.error.message}`))
+            } else {
+              console.error('❌ 返回数据异常:', res.data)
+              reject(new Error('API返回的数据格式异常'))
+            }
+          },
+          fail: (error) => {
+            const endTime = Date.now()
+            const duration = ((endTime - startTime) / 1000).toFixed(2)
+
+            console.error(`❌ 请求失败 (${duration}秒)`)
+
+            let errorMsg = error.errMsg || '网络请求失败'
+
+            if (errorMsg.includes('timeout')) {
+              errorMsg = '请求超时（60秒），AI服务响应较慢，请稍后重试'
+            } else if (errorMsg.includes('request:fail')) {
+              errorMsg = '无法连接到DeepSeek服务器，请检查网络连接'
+            }
+
+            reject(new Error(errorMsg))
           }
-        },
-        timeout: 65000 // 云函数超时时间稍长于API超时
+        })
       })
 
       const endTime = Date.now()
       const duration = ((endTime - startTime) / 1000).toFixed(2)
 
-      if (res.result && res.result.success) {
-        const reportContent = res.result.data.content
+      console.log(`⏱️ 总耗时: ${duration}秒`)
 
-        console.log('✅ 云函数调用成功！')
-        console.log(`⏱️ 总耗时: ${duration}秒（含网络传输）`)
-        console.log(`📄 内容长度: ${reportContent.length}字符`)
-        console.log(`📊 Token使用:`, res.result.data.usage)
-        console.log(`📄 预览:`, reportContent.substring(0, 80) + '...')
+      this.setData({
+        generatedReport: reportContent,
+        showResult: true,
+        isGenerating: false
+      });
 
-        this.setData({
-          generatedReport: reportContent,
-          showResult: true,
-          isGenerating: false
-        });
+      wx.showToast({
+        title: '生成成功 ✨',
+        icon: 'success',
+        duration: 2000
+      });
 
-        wx.showToast({
-          title: '生成成功 ✨',
-          icon: 'success',
-          duration: 2000
-        });
+      wx.vibrateShort({
+        type: 'medium'
+      })
 
-        wx.vibrateShort({
-          type: 'medium'
-        })
-        
-        console.log('========================================')
-        console.log('✅ 全部流程完成！用户可以看到结果了')
-        console.log('========================================')
-        
-      } else {
-        const errorMsg = res.result?.error || '云函数返回异常'
-        throw new Error(errorMsg)
-      }
+      console.log('========================================')
+      console.log('✅ 全部流程完成！用户可以看到结果了')
+      console.log('========================================')
 
     } catch (error) {
       console.error('=== 生成过程出错 ===')
       console.error('错误信息:', error.message)
-      
+
       this.setData({ isGenerating: false })
 
       let errorTitle = '⚠️ 生成失败'
       let errorContent = ''
-      
+
       if (error.message.includes('timeout') || error.message.includes('超时')) {
         errorTitle = '⏰ 请求超时'
-        errorContent = 'AI服务响应较慢，可能是网络拥堵或服务器繁忙\n\n建议：稍后重试或简化输入内容'
+        errorContent = 'AI服务响应较慢，可能是网络拥堵或服务器繁忙\n\n建议：\n1. 稍后重试（建议等待10秒）\n2. 简化输入内容后重试'
       } else if (error.message.includes('request:fail') || error.message.includes('无法连接')) {
         errorTitle = '🌐 网络连接失败'
-        errorContent = '无法连接到服务器\n\n建议：检查手机网络（WiFi/4G/5G）并重试'
+        errorContent = '无法连接到DeepSeek服务器\n\n建议：\n1. 检查手机网络（WiFi/4G/5G）\n2. 切换网络后重试\n3. 确认"不校验合法域名"已开启（本地调试）'
       } else if (error.message.includes('每日生成次数')) {
         return // 这个错误已经在 checkAndRecordUsage 中处理了
-      } else if (error.message.includes('cloud function not found') || error.message.includes('云函数未部署')) {
-        errorTitle = '☁️ 云函数未部署'
-        errorContent = 'apiProxy云函数尚未部署到云端\n\n【请按以下步骤操作】\n1. 在微信开发者工具左侧找到 cloudfunctions/apiProxy\n2. 右键点击 → 选择"上传并部署：云端安装依赖"\n3. 等待部署完成后重新生成周报'
-      } else if (error.message.includes('-504003') || error.message.includes('timed out') || error.message.includes('TIME_LIMIT_EXCEEDED')) {
-        errorTitle = '⏱️ 云函数调用超时'
-        errorContent = '可能原因：\n\n1. 【最可能】apiProxy云函数未部署\n   → 请在开发者工具右键 cloudfunctions/apiProxy\n   → 选择"上传并部署：云端安装依赖"\n\n2. 云函数执行出错\n   → 查看开发者工具控制台的错误信息\n\n3. 网络不稳定\n   → 检查手机网络连接'
+      } else if (error.message.includes('API错误') || error.message.includes('invalid_api_key')) {
+        errorTitle = '🔑 API配置异常'
+        errorContent = 'DeepSeek API Key无效或余额不足\n\n请检查：\n1. API Key是否正确\n2. 账户余额是否充足\n3. 访问 https://platform.deepseek.com 查看状态'
       } else {
-        errorContent = `${error.message}\n\n可能原因：\n1. 网络连接问题\n2. 云函数未部署\n3. DeepSeek 服务暂时不可用`
+        errorContent = `${error.message}\n\n可能原因：\n1. 网络连接不稳定\n2. DeepSeek服务暂时不可用\n3. API Key配置问题`
       }
-      
+
       wx.showModal({
         title: errorTitle,
         content: errorContent,
