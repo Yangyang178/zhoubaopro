@@ -1,0 +1,57 @@
+<!--history.wxml-->
+<navigation-bar title="历史记录" back="{{true}}" color="black" background="#FFF"></navigation-bar>
+<scroll-view class="scrollarea" scroll-y type="list">
+  <view class="container">
+
+    <!-- 头部统计 -->
+    <view class="header-stats">
+      <text class="stats-title">📚 历史周报记录</text>
+      <text class="stats-count">共 {{reportList.length}} 条记录</text>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{reportList.length === 0}}">
+      <text class="empty-icon">📝</text>
+      <text class="empty-text">暂无历史记录</text>
+      <text class="empty-hint">生成并保存的周报会显示在这里</text>
+      <button class="back-btn" bindtap="goBack">返回首页生成</button>
+    </view>
+
+    <!-- 历史列表 -->
+    <view class="history-list" wx:if="{{reportList.length > 0}}">
+      <view
+        class="history-item"
+        wx:for="{{reportList}}"
+        wx:key="id"
+      >
+        <!-- 卡片头部 -->
+        <view class="item-header">
+          <view class="item-info">
+            <text class="item-position">{{item.positionName || '通用'}}</text>
+            <text class="item-time">{{item.timeAgo}}</text>
+          </view>
+          <view class="item-actions">
+            <text class="action-btn delete-btn" bindtap="deleteReport" data-id="{{item.id}}">🗑️</text>
+          </view>
+        </view>
+
+        <!-- 内容预览 -->
+        <view class="item-content" bindtap="viewDetail" data-index="{{index}}">
+          <text class="item-text">{{item.preview}}</text>
+          <text class="view-more" wx:if="{{item.showMore}}">点击查看完整内容 →</text>
+        </view>
+
+        <!-- 底部操作 -->
+        <view class="item-footer">
+          <button class="copy-item-btn" bindtap="copyReport" data-index="{{index}}" size="mini">📋 复制</button>
+        </view>
+      </view>
+    </view>
+
+    <!-- 批量操作栏（底部固定） -->
+    <view class="batch-actions" wx:if="{{reportList.length > 0}}">
+      <button class="clear-all-btn" bindtap="clearAllHistory">🗑️ 清空所有历史</button>
+    </view>
+
+  </view>
+</scroll-view>

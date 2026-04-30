@@ -1,0 +1,1 @@
+{"name": "dbOperation", "version": "1.0.0", "description": "操作云数据库 - 历史记录CRUD", "main": "index.js", "scripts": {"test": "echo \"Error: no test specified\" && exit 1"}, "dependencies": {"wx-server-sdk": "~2.6.3"}, "engines": {"node": ">=16"}}

@@ -1,0 +1,1 @@
+{"name": "generateReport", "version": "1.0.0", "description": "调用DeepSeek API生成周报", "main": "index.js", "scripts": {"test": "echo \"Error: no test specified\" && exit 1"}, "dependencies": {"wx-server-sdk": "~2.6.3"}, "engines": {"node": ">=16"}}
