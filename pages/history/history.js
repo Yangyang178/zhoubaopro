@@ -1,9 +1,20 @@
 // history.js
+const { POSITION_MAP, STORAGE_KEYS } = require('../../utils/constants')
+const { showSuccess } = require('../../utils/errorHandler')
+const { getCache, setCache, CACHE_DURATION } = require('../../utils/cache')
+
 Page({
   data: {
     reportList: [],
     isLoading: false,
-    useCloudDB: false  // 标记是否使用云数据库
+    useCloudDB: false,  // 标记是否使用云数据库
+    
+    // 分页配置
+    currentPage: 1,
+    pageSize: 10,        // 每页加载数量
+    hasMore: true,       // 是否还有更多数据
+    isLoadingMore: false,// 是否正在加载更多
+    totalCount: 0        // 总记录数
   },
 
   onLoad() {
@@ -16,17 +27,53 @@ Page({
       this.setData({ useCloudDB: true })
     }
     
+    // 重置分页状态
+    this.setData({
+      currentPage: 1,
+      hasMore: true,
+      reportList: []
+    })
+    
     this.loadHistory()
   },
 
   onShow() {
-    this.loadHistory()
+    // 仅在首次加载或从其他页面返回时刷新
+    if (!this.data.reportList || this.data.reportList.length === 0) {
+      this.loadHistory()
+    }
   },
 
-  async loadHistory() {
-    this.setData({ isLoading: true })
+  async loadHistory(isLoadMore = false) {
+    if (isLoadMore) {
+      if (this.data.isLoadingMore || !this.data.hasMore) return
+      this.setData({ isLoadingMore: true })
+    } else {
+      this.setData({ 
+        isLoading: true,
+        currentPage: 1,
+        hasMore: true,
+        reportList: []
+      })
+    }
+
+    const page = isLoadMore ? this.data.currentPage : 1
 
     try {
+      // 尝试从缓存获取（仅首页）
+      if (!isLoadMore) {
+        const cachedData = getCache('history_list')
+        if (cachedData && cachedData.length > 0) {
+          console.log('✅ 使用缓存的历史记录')
+          this.setData({
+            reportList: cachedData,
+            isLoading: false,
+            hasMore: cachedData.length >= this.data.pageSize
+          })
+          return
+        }
+      }
+
       // 优先从云数据库加载
       if (this.data.useCloudDB && wx.cloud) {
         try {
@@ -35,8 +82,8 @@ Page({
             data: {
               action: 'list',
               data: {
-                page: 1,
-                pageSize: 50
+                page: page,
+                pageSize: this.data.pageSize
               }
             },
             timeout: 10000
@@ -44,6 +91,7 @@ Page({
 
           if (res.result && res.result.success) {
             const cloudList = res.result.data.list || []
+            const totalCount = res.result.data.total || 0
             
             // 处理云数据格式
             const processedReports = cloudList.map(report => ({
@@ -58,11 +106,25 @@ Page({
               isFromCloud: true  // 标记来源
             }))
 
-            console.log(`✅ 从云数据库加载 ${processedReports.length} 条记录`)
+            console.log(`✅ 从云数据库加载第${page}页，${processedReports.length} 条记录`)
+
+            // 合并或替换数据
+            const newList = isLoadMore 
+              ? [...this.data.reportList, ...processedReports]
+              : processedReports
+
+            // 缓存首页数据
+            if (!isLoadMore && processedReports.length > 0) {
+              setCache('history_list', processedReports, CACHE_DURATION.MEDIUM)
+            }
 
             this.setData({
-              reportList: processedReports,
-              isLoading: false
+              reportList: newList,
+              isLoading: false,
+              isLoadingMore: false,
+              currentPage: page + 1,
+              hasMore: newList.length < totalCount,
+              totalCount: totalCount
             })
             return
           } else {
@@ -74,41 +136,63 @@ Page({
         }
       }
 
-      // 降级方案：从本地存储加载
-      const reports = wx.getStorageSync('reportHistory') || []
-      
-      const positionMap = {
-        'frontend': '前端工程师',
-        'backend': '后端工程师',
-        'product': '产品经理',
-        'operation': '运营',
-        'designer': '设计师',
-        'general': '通用'
-      }
+      // 降级方案：从本地存储加载（支持分页）
+      const allReports = wx.getStorageSync(STORAGE_KEYS.REPORT_HISTORY) || []
+      const totalCount = allReports.length
+      const startIndex = (page - 1) * this.data.pageSize
+      const endIndex = startIndex + this.data.pageSize
+      const paginatedReports = allReports.slice(startIndex, endIndex)
 
-      const processedReports = reports.map(report => ({
+      const processedReports = paginatedReports.map(report => ({
         ...report,
-        positionName: positionMap[report.position] || '通用',
+        positionName: POSITION_MAP[report.position] || '通用',
         timeAgo: this.formatTimeAgo(report.createTime),
         preview: this.getPreview(report.content),
         showMore: report.content.length > 150,
         isFromCloud: false
       }))
 
-      console.log(`📦 从本地存储加载 ${processedReports.length} 条记录`)
+      console.log(`📦 从本地存储加载第${page}页，${processedReports.length} 条记录`)
+
+      // 合并或替换数据
+      const newList = isLoadMore 
+        ? [...this.data.reportList, ...processedReports]
+        : processedReports
+
+      // 缓存首页数据
+      if (!isLoadMore && processedReports.length > 0) {
+        setCache('history_list', processedReports, CACHE_DURATION.MEDIUM)
+      }
 
       this.setData({
-        reportList: processedReports,
-        isLoading: false
+        reportList: newList,
+        isLoading: false,
+        isLoadingMore: false,
+        currentPage: page + 1,
+        hasMore: newList.length < totalCount,
+        totalCount: totalCount
       })
       
     } catch (error) {
       console.error('加载历史记录失败:', error)
-      this.setData({ isLoading: false })
+      this.setData({ 
+        isLoading: false,
+        isLoadingMore: false
+      })
       wx.showToast({
         title: '加载失败',
         icon: 'none'
       })
+    }
+  },
+
+  /**
+   * 加载更多历史记录（上拉触发）
+   */
+  loadMore() {
+    if (this.data.hasMore && !this.data.isLoadingMore) {
+      console.log('📜 加载更多历史记录...')
+      this.loadHistory(true)
     }
   },
 
@@ -256,9 +340,9 @@ Page({
               }
             } else {
               // 本地数据删除
-              let reports = wx.getStorageSync('reportHistory') || []
+              let reports = wx.getStorageSync(STORAGE_KEYS.REPORT_HISTORY) || []
               reports = reports.filter(r => r.id !== id)
-              wx.setStorageSync('reportHistory', reports)
+              wx.setStorageSync(STORAGE_KEYS.REPORT_HISTORY, reports)
             }
 
             this.loadHistory()
@@ -321,7 +405,7 @@ Page({
             }
 
             // 同时清除本地缓存（兼容）
-            wx.removeStorageSync('reportHistory')
+            wx.removeStorageSync(STORAGE_KEYS.REPORT_HISTORY)
             
             this.setData({ reportList: [] })
 

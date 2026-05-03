@@ -65,6 +65,31 @@
         placeholder-class="placeholder-text"
       ></textarea>
       <text class="char-count">{{weeklyWork.length}}/1000</text>
+      
+      <!-- 模板快捷入口 -->
+      <view class="template-trigger" bindtap="toggleTemplatePicker">
+        <text class="template-icon">💡</text>
+        <text class="template-text">使用工作模板</text>
+      </view>
+
+      <!-- 工作模板选择器 -->
+      <view class="template-picker" wx:if="{{showTemplatePicker}}">
+        <view class="template-header">
+          <text class="template-title">选择工作内容模板</text>
+          <text class="template-close" bindtap="toggleTemplatePicker">✕</text>
+        </view>
+        <scroll-view scroll-y class="template-list">
+          <view 
+            class="template-item" 
+            wx:for="{{workTemplates}}" 
+            wx:key="*this"
+            bindtap="selectTemplate"
+            data-index="{{index}}"
+          >
+            <text class="template-item-text">{{item}}</text>
+          </view>
+        </scroll-view>
+      </view>
     </view>
 
     <!-- 下周计划输入区 -->
@@ -126,6 +151,19 @@
         </view>
       </button>
 
+      <!-- 生成进度步骤（生成中显示） -->
+      <view class="progress-steps" wx:if="{{isGenerating}}">
+        <view 
+          class="step-item {{item.status}}" 
+          wx:for="{{generatingSteps}}" 
+          wx:key="text"
+        >
+          <view class="step-icon">{{item.icon}}</view>
+          <text class="step-text">{{item.text}}</text>
+          <view class="step-indicator" wx:if="{{item.status === 'active'}}"></view>
+        </view>
+      </view>
+
       <!-- 次要操作按钮组 -->
       <view class="secondary-actions">
         <button class="action-btn secondary-btn" bindtap="clearAll">
@@ -158,15 +196,44 @@
           <text class="result-icon">🎉</text>
           <text class="result-title">生成成功</text>
         </view>
-        <text class="copy-btn" bindtap="copyReport">📋 复制</text>
+        <view class="result-header-actions">
+          <text class="word-count">{{generatedReport.length}} 字</text>
+          <text class="copy-btn" bindtap="copyReport">📋 复制</text>
+        </view>
       </view>
+      
       <view class="result-card">
-        <text class="result-content">{{generatedReport}}</text>
+        <text 
+          class="result-content {{!showFullContent ? 'collapsed' : ''}}" 
+          wx:if="{{!showFullContent && generatedReport.length > 200}}"
+        >
+          {{generatedReport.substring(0, 200)}}...
+        </text>
+        <text 
+          class="result-content" 
+          wx:if="{{showFullContent || generatedReport.length <= 200}}"
+        >
+          {{generatedReport}}
+        </text>
+        
+        <!-- 展开/收起按钮 -->
+        <view 
+          class="expand-btn" 
+          wx:if="{{generatedReport.length > 200}}"
+          bindtap="toggleContent"
+        >
+          <text class="expand-text">{{showFullContent ? '收起内容 ↑' : '展开全部 ↓'}}</text>
+        </view>
       </view>
+
       <view class="result-actions">
         <button class="result-action-btn save-btn-new" bindtap="saveReport">
-          <text class="action-icon">�</text>
+          <text class="action-icon">💾</text>
           <text>保存到云端</text>
+        </button>
+        <button class="result-action-btn share-btn-new" open-type="share">
+          <text class="action-icon">📤</text>
+          <text>分享</text>
         </button>
         <button class="result-action-btn view-history-btn" bindtap="goToHistory">
           <text class="action-icon">�</text>

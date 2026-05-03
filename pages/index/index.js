@@ -1,16 +1,14 @@
 // index.js
 const app = getApp()
 
+// 引入公共模块
+const { POSITION_LIST, API_CONFIG, AI_PARAMS, USAGE_LIMIT, STORAGE_KEYS } = require('../../utils/constants')
+const { getPositionPrompt, buildUserPrompt } = require('../../utils/prompts')
+const { showError, showSuccess } = require('../../utils/errorHandler')
+
 Page({
   data: {
-    positions: [
-      { id: 'frontend', name: '前端工程师' },
-      { id: 'backend', name: '后端工程师' },
-      { id: 'product', name: '产品经理' },
-      { id: 'operation', name: '运营' },
-      { id: 'designer', name: '设计师' },
-      { id: 'general', name: '通用' }
-    ],
+    positions: POSITION_LIST, // 使用公共常量
     selectedPosition: '',
     weeklyWork: '',
     nextPlan: '',
@@ -19,6 +17,19 @@ Page({
     showResult: false,
     generatedReport: '',
     historyCount: 0,
+    
+    // 生成进度状态
+    generatingStep: 0,        // 当前步骤 (0-4)
+    generatingSteps: [         // 步骤定义
+      { icon: '📝', text: '准备 Prompt', status: 'pending' },
+      { icon: '🔗', text: '连接 AI 服务', status: 'pending' },
+      { icon: '⚙️', text: 'AI 生成中', status: 'pending' },
+      { icon: '✨', text: '优化输出', status: 'pending' },
+      { icon: '🎉', text: '完成！', status: 'pending' }
+    ],
+    
+    // 结果展示区状态
+    showFullContent: false,  // 是否展开全部内容
     
     // 用户信息
     userInfo: {
@@ -29,18 +40,33 @@ Page({
     
     // 防止频繁调用的标记
     canGetUserProfile: true,
-    getUserProfileCooldown: 2000, // 2秒冷却时间
+    getUserProfileCooldown: USAGE_LIMIT.COOLDOWN_TIME, // 使用公共常量
 
     // DeepSeek API 配置（前端直连模式）
-    // 注意：由于微信云函数免费版限制3秒超时，无法满足AI生成需求（需5-15秒）
-    // 因此采用前端直连模式，API Key在此处配置
+    // ⚠️ 安全提示：API Key 存储在前端代码中，仅用于个人测试或内部使用
+    // ⚠️ 生产环境建议使用云函数代理模式（apiProxy）以保护 API Key
     apiKey: 'sk-95d6993d5f7d49bd8c5c6d94288e6300',
 
     // 每日生成次数限制
-    dailyLimit: 5,
+    dailyLimit: USAGE_LIMIT.DAILY_LIMIT, // 使用公共常量
     usedCount: 0,
     remainingCount: 5,
-    isMember: false
+    isMember: false,
+
+    // 工作内容模板
+    workTemplates: [
+      '完成了登录模块开发，实现了用户注册、登录、密码找回功能',
+      '修复了3个bug，优化了页面加载速度，提升了用户体验',
+      '参与了产品需求评审，输出了技术方案设计文档',
+      '完成了XX功能的开发和测试，已上线并稳定运行',
+      '搭建了XX组件库，提升了团队开发效率30%',
+      '优化了数据库查询性能，接口响应时间降低50%',
+      '完成了移动端适配，支持iOS和Android双平台',
+      '编写了单元测试，测试覆盖率达到80%'
+    ],
+    
+    // 显示模板选择器
+    showTemplatePicker: false,
   },
 
   onLoad() {
@@ -317,6 +343,89 @@ Page({
     });
   },
 
+  /**
+   * 切换模板选择器显示状态
+   */
+  toggleTemplatePicker() {
+    this.setData({
+      showTemplatePicker: !this.data.showTemplatePicker
+    })
+  },
+
+  /**
+   * 选择工作模板
+   */
+  selectTemplate(e) {
+    const index = e.currentTarget.dataset.index
+    const template = this.data.workTemplates[index]
+    
+    if (template) {
+      // 追加到现有内容（如果有）
+      const currentWork = this.data.weeklyWork
+      const newWork = currentWork 
+        ? currentWork + '\n' + template 
+        : template
+      
+      this.setData({
+        weeklyWork: newWork,
+        showTemplatePicker: false
+      })
+
+      wx.showToast({
+        title: '已添加模板',
+        icon: 'success',
+        duration: 1000
+      })
+
+      wx.vibrateShort({ type: 'light' })
+    }
+  },
+
+  /**
+   * 更新生成进度
+   * @param {number} step - 步骤索引 (0-4)
+   */
+  updateGeneratingStep(step) {
+    const steps = this.data.generatingSteps.map((s, index) => ({
+      ...s,
+      status: index < step ? 'completed' : index === step ? 'active' : 'pending'
+    }))
+
+    this.setData({
+      generatingStep: step,
+      generatingSteps: steps
+    })
+  },
+
+  /**
+   * 切换内容展开/收起
+   */
+  toggleContent() {
+    this.setData({
+      showFullContent: !this.data.showFullContent
+    })
+    
+    wx.vibrateShort({ type: 'light' })
+  },
+
+  /**
+   * 分享给朋友
+   */
+  onShareAppMessage() {
+    if (this.data.generatedReport) {
+      return {
+        title: '📄 我的AI周报 - 报报pro',
+        path: '/pages/index/index',
+        content: this.data.generatedReport.substring(0, 100) + '...'
+      }
+    }
+    
+    return {
+      title: '🚀 AI智能周报生成器 - 报报pro',
+      path: '/pages/index/index'
+    }
+  },
+
   async generateReport() {
     if (!this.data.weeklyWork.trim()) {
       wx.showToast({
@@ -336,155 +445,47 @@ Page({
     }
 
     this.setData({ isGenerating: true });
+    
+    // 初始化进度状态
+    this.updateGeneratingStep(0)  // 步骤 0: 准备 Prompt
 
     console.log('========================================')
     console.log('🚀 开始调用 DeepSeek AI (通过云函数代理)')
     console.log('========================================')
 
     try {
-      const positionMap = {
-        'frontend': '前端工程师',
-        'backend': '后端工程师',
-        'product': '产品经理',
-        'operation': '运营',
-        'designer': '设计师',
-        'general': '通用'
-      }
+      const { POSITION_MAP } = require('../../utils/constants')
+      const positionName = POSITION_MAP[this.data.selectedPosition] || '通用'
 
-      const positionName = positionMap[this.data.selectedPosition] || '通用'
-
-      // 岗位专业化System Prompt配置
-      const positionSystemPrompts = {
-        'frontend': `你是一位资深的前端技术专家和团队Tech Lead，拥有8年以上大型互联网项目开发经验。你精通Vue/React/小程序等主流前端框架，对性能优化、组件化架构、用户体验有深刻理解。
-
-【你的专业特质】
-- 技术导向：善于用专业术语描述技术实现（如：组件封装、响应式布局、性能监控、Webpack/Vite构建优化）
-- 成果量化：习惯用数据说话（如：页面加载速度提升30%、首屏渲染时间降低至1.2s、组件复用率提升50%）
-- 架构思维：关注代码质量、可维护性、技术债务治理
-- 用户视角：始终将用户体验作为衡量工作价值的标准
-
-【周报撰写风格】
-- 使用"完成XX功能模块开发/优化"的句式
-- 突出技术难点攻克（如：解决XX兼容性问题、优化XX性能瓶颈）
-- 强调工程化实践（如：建立XX组件库、完善XX测试用例）
-- 体现前后端协作与沟通`,
-
-        'backend': `你是一位资深后端架构师，拥有10年以上的分布式系统设计和开发经验。你精通Java/Go/Python等后端语言，熟悉微服务架构、数据库设计、高并发处理、系统稳定性保障。
-
-【你的专业特质】
-- 系统思维：从全局视角看待服务架构（如：API设计、数据库建模、缓存策略、消息队列）
-- 稳定性优先：关注SLA、可用性、容灾备份、监控告警
-- 性能敏感：注重QPS、TPS、延迟优化、资源利用率
-- 安全意识：数据安全、接口鉴权、防刷限流
-
-【周报撰写风格】
-- 使用"完成XX接口开发/系统优化"的句式
-- 突出架构改进（如：重构XX模块提升扩展性、引入XX中间件）
-- 强调数据指标（如：支撑日均XX万请求、查询耗时降低60%）
-- 体现运维保障能力（如：修复XX线上问题、完善XX监控体系）`,
-
-        'product': `你是一位资深产品总监，拥有丰富的互联网产品全生命周期管理经验。你擅长需求分析、用户研究、数据驱动决策、跨部门协作推动项目落地。
-
-【你的专业特质】
-- 用户中心：始终以用户价值为核心思考问题
-- 数据驱动：习惯用数据验证假设（如：DAU增长、转化率提升、NPS评分）
-- 商业敏感：关注业务目标、ROI、市场竞争力
-- 项目管理：擅长协调研发、设计、运营多方资源
-
-【周报撰写风格】
-- 使用"推进XX功能上线/迭代"的句式
-- 突出用户价值（如：覆盖XX万用户场景、用户满意度提升X%）
-- 强调数据表现（如：核心指标达成率XX%、A/B测试结果正向）
-- 体现规划能力（如：完成QX版本规划、输出XX份PRD文档）`,
-
-        'operation': `你是一位资深的互联网运营专家，拥有丰富的用户增长、内容运营、活动策划经验。你精通数据分析、用户分层、精细化运营方法论。
-
-【你的专业特质】
-- 数据敏感：对GMV、DAU、留存率、转化漏斗等核心指标了如指掌
-- 增长思维：善于制定用户获取、激活、留存、变现策略
-- 内容能力：擅长内容策划、热点借势、社群运营
-- 效果导向：一切以ROI和业务结果为衡量标准
-
-【周报撰写风格】
-- 使用"完成XX活动策划/运营动作"的句式
-- 突出数据成果（如：新增用户XX万、GMV突破XX万、转化率提升X%）
-- 强调策略执行（如：落地XX用户分层策略、优化XX转化路径）
-- 体现复盘能力（如：XX活动复盘总结、下期优化方向明确）`,
-
-        'designer': `你是一位资深的UI/UX设计专家，拥有国际化的设计视野和丰富的产品设计经验。你精通设计系统搭建、用户体验研究、视觉规范制定、设计工具链管理。
-
-【你的专业特质】
-- 审美专业：对色彩、排版、动效、交互细节有极高要求
-- 用户同理心：善于通过用户研究和可用性测试发现问题
-- 设计系统化：强调一致性、可维护性、设计资产沉淀
-- 业务理解：能将商业目标转化为优秀的设计方案
-
-【周报撰写风格】
-- 使用"完成XX界面设计/体验优化"的句式
-- 突出设计产出（如：输出XX个页面设计稿、建立XX设计规范）
-- 强调用户价值（如：优化XX流程提升操作效率X%、用户满意度调研得分X分）
-- 体现协作能力（如：与产品/开发紧密配合确保还原度90%+）`,
-
-        'general': `你是一位专业的职场写作专家和管理顾问，具有10年以上的企业管理和HRBP经验。你擅长帮助不同岗位的职场人士梳理工作亮点、提炼核心价值、展现职业素养。
-
-【你的专业特质】
-- 通才视角：能够理解各行各业的工作特点和价值点
-- 逻辑清晰：善于将复杂工作归纳为清晰的结构化表达
-- 价值挖掘：帮助发现工作中的闪光点和潜在贡献
-- 职业素养：懂得如何用得体的语言展现专业形象
-
-【周报撰写风格】
-- 根据具体工作内容灵活调整表达方式
-- 突出工作成果和实际贡献
-- 体现主动性和解决问题的能力
-- 展现良好的职业态度和学习成长`
-      }
-
-      // 获取当前岗位的专业化System Prompt
-      const systemPrompt = positionSystemPrompts[this.data.selectedPosition] || positionSystemPrompts['general']
+      // 使用公共模块获取岗位专业化 System Prompt
+      const systemPrompt = getPositionPrompt(this.data.selectedPosition)
 
       console.log('🎯 使用岗位专属Prompt:', this.data.selectedPosition)
 
-      // 构建优化的User Prompt
-      const prompt = `【任务】根据以下信息生成一份高质量的${positionName}周报
-
-【基本信息】
-- 岗位：${positionName}
-
-【本周工作内容】
-${this.data.weeklyWork}
-${this.data.nextPlan ? `\n【下周计划】\n${this.data.nextPlan}` : ''}
-${this.data.problems ? `\n【遇到的问题与困难】\n${this.data.problems}` : ''}
-
-【输出要求】
-1. 语言风格：完全符合${positionName}的专业表达习惯，使用行业术语
-2. 内容结构：
-   - 开头：一句话概括本周最核心的成果或进展（要有冲击力）
-   - 本周工作：将零散信息提炼为3-5个关键成果点，使用"✅ 1. [成果标题] + 具体描述 + 数据/效果"格式
-   - 下周计划（如有）：体现目标导向，使用SMART原则表述
-   - 问题困难（如有）：体现分析深度和解决方案思路，不要只列问题
-   - 结尾：1句话总结本周收获或下周重点聚焦方向
-3. 字数控制：300-500字（根据内容充实度调整，宁精勿滥）
-4. 格式规范：
-   - 使用emoji图标增强可读性（✅ 📊 💡 🔧 🎯 等）
-   - 关键数据和成果加粗或用数字突出
-   - 段落之间空行，层次分明
-
-【重要提醒】
-- 直接输出周报正文，禁止任何前缀说明
-- 不要说"以下是生成的周报"、"好的，我来帮你写"等废话
-- 内容必须基于用户提供的信息进行提炼升华，禁止编造数据`
+      // 使用公共模块构建 User Prompt
+      const prompt = buildUserPrompt({
+        positionName: positionName,
+        weeklyWork: this.data.weeklyWork,
+        nextPlan: this.data.nextPlan,
+        problems: this.data.problems
+      })
 
       console.log('📝 Prompt 构建完成')
+      
+      // 步骤 1: 连接 AI 服务
+      this.updateGeneratingStep(1)
+
       console.log('📍 岗位:', positionName)
       console.log('📊 工作内容长度:', this.data.weeklyWork.length, '字符')
 
       const startTime = Date.now()
 
       // 直接调用 DeepSeek API（前端直连模式）
-      // 原因：微信云函数免费版限制3秒超时，无法满足AI生成需求（需5-15秒）
       console.log('📤 直接调用 DeepSeek API (前端直连模式)')
       console.log('⚠️ 注意：API Key在前端代码中，请勿将代码公开分享')
+
+      // 步骤 2: AI 生成中
+      this.updateGeneratingStep(2)
 
       const reportContent = await new Promise((resolve, reject) => {
         wx.request({
@@ -553,6 +554,15 @@ ${this.data.problems ? `\n【遇到的问题与困难】\n${this.data.problems}`
       const duration = ((endTime - startTime) / 1000).toFixed(2)
 
       console.log(`⏱️ 总耗时: ${duration}秒`)
+
+      // 步骤 3: 优化输出
+      this.updateGeneratingStep(3)
+      
+      // 短暂延迟让用户看到完成状态
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      // 步骤 4: 完成
+      this.updateGeneratingStep(4)
 
       this.setData({
         generatedReport: reportContent,
@@ -650,16 +660,8 @@ ${this.data.problems ? `\n【遇到的问题与困难】\n${this.data.problems}`
     }
 
     try {
-      const positionMap = {
-        'frontend': '前端工程师',
-        'backend': '后端工程师',
-        'product': '产品经理',
-        'operation': '运营',
-        'designer': '设计师',
-        'general': '通用'
-      }
-      
-      const positionName = positionMap[this.data.selectedPosition] || '通用'
+      const { POSITION_MAP } = require('../../utils/constants')
+      const positionName = POSITION_MAP[this.data.selectedPosition] || '通用'
 
       // 优先使用云数据库保存
       if (wx.cloud) {

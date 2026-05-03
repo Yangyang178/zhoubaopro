@@ -257,3 +257,58 @@ page {
 .clear-all-btn::after {
   border: none;
 }
+
+/* ==================== 加载状态 ==================== */
+.loading-state {
+  text-align: center;
+  padding: 80rpx 40rpx;
+  background: #fff;
+  border-radius: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+}
+
+.loading-text {
+  font-size: 30rpx;
+  color: #667eea;
+  font-weight: 600;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ==================== 加载更多区域 ==================== */
+.load-more-section {
+  padding: 30rpx 0 20rpx;
+  text-align: center;
+}
+
+.loading-more,
+.has-more,
+.no-more {
+  padding: 20rpx 0;
+}
+
+.loading-more-text,
+.has-more-text,
+.no-more-text {
+  font-size: 26rpx;
+  color: #a0aec0;
+  font-weight: 500;
+  display: block;
+}
+
+.loading-more-text {
+  color: #667eea;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.has-more-text {
+  color: #718096;
+}
+
+.no-more-text {
+  color: #cbd5e0;
+}
