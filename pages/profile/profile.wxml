@@ -1,0 +1,179 @@
+<!--profile.wxml-->
+<navigation-bar title="个人中心" back="{{true}}" color="white" background="#667eea"></navigation-bar>
+<scroll-view class="profile-container" scroll-y enhanced show-scrollbar="{{false}}">
+  
+  <!-- 未登录状态 -->
+  <view class="login-section" wx:if="{{!isLoggedIn && !isLoading}}">
+    <view class="login-card">
+      <view class="login-avatar">
+        <text class="avatar-placeholder">👤</text>
+      </view>
+      
+      <view class="login-info">
+        <text class="login-title">欢迎使用周报Pro</text>
+        <text class="login-desc">登录后享受完整功能</text>
+      </view>
+      
+      <button class="login-btn" bindtap="handleLogin">
+        <text class="login-btn-icon">🔑</text>
+        <text class="login-btn-text">微信一键登录</text>
+      </button>
+      
+      <view class="login-features">
+        <view class="feature-item">
+          <text class="feature-icon">✅</text>
+          <text class="feature-text">每日免费生成5次</text>
+        </view>
+        <view class="feature-item">
+          <text class="feature-icon">✅</text>
+          <text class="feature-text">云端数据自动同步</text>
+        </view>
+        <view class="feature-item">
+          <text class="feature-icon">✅</text>
+          <text class="feature-text">多设备无缝切换</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading-section" wx:if="{{isLoading}}">
+    <text class="loading-text">⏳ 加载中...</text>
+  </view>
+
+  <!-- 已登录状态 -->
+  <view class="user-section" wx:if="{{isLoggedIn}}">
+    
+    <!-- 用户信息卡片 -->
+    <view class="user-card">
+      <!-- 背景装饰 -->
+      <view class="card-bg"></view>
+      
+      <!-- 用户头像和基本信息 -->
+      <view class="user-header">
+        <image 
+          class="user-avatar" 
+          src="{{userInfo.avatarUrl}}" 
+          mode="aspectFill"
+          wx:if="{{userInfo.avatarUrl}}"
+        ></image>
+        <view class="user-avatar placeholder" wx:else>
+          <text>{{userInfo.nickname ? userInfo.nickname[0] : '?'}}</text>
+        </view>
+        
+        <view class="user-basic">
+          <text class="user-nickname">{{userInfo.nickname || '微信用户'}}</text>
+          <view class="member-badge {{membership.isMember ? 'active' : ''}}">
+            <text class="badge-text">{{membership.typeText}}</text>
+          </view>
+        </view>
+        
+        <button class="settings-btn" bindtap="handleLogout" hover-class="none">
+          <text class="settings-icon">⋮⋮</text>
+        </button>
+      </view>
+      
+      <!-- 数据统计 -->
+      <view class="stats-row">
+        <view class="stat-item">
+          <text class="stat-number">{{usage.totalCount || stats.totalReports || 0}}</text>
+          <text class="stat-label">总生成数</text>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-item">
+          <text class="stat-number">{{stats.timeSaved || 0}}h</text>
+          <text class="stat-label">节省时间</text>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-item">
+          <text class="stat-number">{{usage.remainingCount === Infinity ? '∞' : usage.remainingCount}}</text>
+          <text class="stat-label">今日剩余</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 今日使用情况 -->
+    <view class="usage-card">
+      <view class="usage-header">
+        <text class="usage-title">📊 今日使用情况</text>
+        <text class="usage-detail">{{usage.dailyCount || 0}}/{{usage.dailyLimit}} 次</text>
+      </view>
+      
+      <view class="progress-bar">
+        <view 
+          class="progress-fill" 
+          style="width: {{(usage.dailyCount / usage.dailyLimit * 100) > 100 ? 100 : (usage.dailyCount / usage.dailyLimit * 100)}}%"
+        ></view>
+      </view>
+      
+      <view class="usage-tips">
+        <text class="tips-text" wx:if="{{!membership.isMember && usage.remainingCount <= 1}}">
+          ⚠️ 次数不足？升级 Pro 会员享无限次
+        </text>
+        <text class="tips-text success" wx:elif="{{membership.isMember}}">
+          ✨ Pro 会员：今日无限次
+        </text>
+        <text class="tips-text" wx:else>
+          💪 继续加油！还剩 {{usage.remainingCount}} 次
+        </text>
+      </view>
+    </view>
+
+    <!-- 功能列表 -->
+    <view class="features-section">
+      <view class="section-header">
+        <text class="section-title">我的服务</text>
+      </view>
+      
+      <view class="features-list">
+        <view 
+          class="feature-card" 
+          wx:for="{{featureList}}" 
+          wx:key="title"
+          data-page="{{item.page}}"
+          data-action="{{item.action}}"
+          data-show="{{item.show}}"
+          bindtap="navigateToFeature"
+        >
+          <view class="feature-icon-wrap">
+            <text class="feature-icon">{{item.icon}}</text>
+          </view>
+          
+          <view class="feature-content">
+            <text class="feature-title">{{item.title}}</text>
+            <text class="feature-desc">{{item.desc}}</text>
+          </view>
+          
+          <text class="feature-arrow">›</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 成就徽章（简化版） -->
+    <view class="achievements-section" wx:if="{{stats.achievements.length > 0}}">
+      <view class="section-header">
+        <text class="section-title">🏆 我的成就</text>
+        <text class="section-more">查看全部 ›</text>
+      </view>
+      
+      <scroll-view scroll-x class="achievements-scroll" enhanced show-scrollbar="{{false}}">
+        <view class="achievements-list">
+          <view 
+            class="achievement-item" 
+            wx:for="{{stats.achievements}}" 
+            wx:key="*this"
+          >
+            <text class="achievement-icon">{{item}}</text>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 版本信息 -->
+    <view class="version-info">
+      <text class="version-text">周报Pro v1.0.0</text>
+      <text class="version-desc">让AI帮你写周报，告别加班 ✨</text>
+    </view>
+  </view>
+
+</scroll-view>
