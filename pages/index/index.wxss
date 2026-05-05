@@ -326,6 +326,132 @@ page {
   color: #f56565;
 }
 
+/* ==================== 输入框操作栏（字数统计 + 清除按钮） ==================== */
+.textarea-wrapper {
+  position: relative;
+}
+
+.textarea-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14rpx;
+  padding: 0 4rpx;
+}
+
+.textarea-actions .char-count {
+  display: inline-block;
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
+/* 清除按钮 */
+.clear-btn {
+  display: none;
+  align-items: center;
+  gap: 6rpx;
+  padding: 8rpx 20rpx;
+  background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+  border: 2rpx solid #feb2b2;
+  border-radius: 24rpx;
+  transition: all 0.25s ease;
+  opacity: 0;
+  transform: translateX(20rpx);
+}
+
+.clear-btn.visible {
+  display: inline-flex;
+  opacity: 1;
+  transform: translateX(0);
+  animation: slideInRight 0.3s ease forwards;
+}
+
+.clear-btn:active {
+  transform: scale(0.95);
+  background: linear-gradient(135deg, #fed7d7 0%, #fbb6ce 100%);
+  border-color: #fc8181;
+}
+
+.clear-btn-text {
+  font-size: 24rpx;
+  color: #c53030;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ==================== 撤销提示条 ==================== */
+.undo-toast {
+  display: none;
+  position: fixed;
+  bottom: 180rpx;  /* 在底部导航栏上方 */
+  left: 50%;
+  transform: translateX(-50%) translateY(100rpx);
+  background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+  border-radius: 40rpx;
+  padding: 20rpx 32rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.3);
+  z-index: 9999;
+  flex-direction: row;
+  align-items: center;
+  gap: 24rpx;
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.undo-toast.visible {
+  display: flex;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  animation: toastSlideUp 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+@keyframes toastSlideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(50rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.undo-text {
+  font-size: 28rpx;
+  color: #e2e8f0;
+  font-weight: 500;
+}
+
+.undo-btn {
+  padding: 12rpx 28rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 28rpx;
+  transition: all 0.25s ease;
+}
+
+.undo-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 4rpx 16rpx rgba(102, 126, 234, 0.4);
+}
+
+.undo-btn-text {
+  font-size: 26rpx;
+  color: #ffffff;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 /* ==================== 工作模板选择器 ==================== */
 .template-trigger {
   display: flex;
@@ -738,6 +864,64 @@ page {
     0 3rpx 12rpx rgba(102, 126, 234, 0.25),
     0 1rpx 4rpx rgba(102, 126, 234, 0.15);
   border-color: #a3bffa;
+}
+
+/* ==================== 底部导航栏 ==================== */
+.bottom-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 20rpx 0;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  background: #ffffff;
+  border-top: 2rpx solid #f0f0f0;
+  position: sticky;
+  bottom: 0;
+  z-index: 100;
+  box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  padding: 16rpx 0;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.nav-item:active {
+  transform: scale(0.95);
+  background: rgba(102, 126, 234, 0.05);
+  border-radius: 16rpx;
+}
+
+.nav-icon {
+  font-size: 44rpx;
+  line-height: 1;
+}
+
+.nav-text {
+  font-size: 24rpx;
+  color: #909399;
+  font-weight: 500;
+}
+
+.nav-item.active .nav-text {
+  color: #667eea;
+  font-weight: 700;
+}
+
+.active-indicator {
+  position: absolute;
+  bottom: 8rpx;
+  width: 40rpx;
+  height: 6rpx;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  border-radius: 3rpx;
 }
 
 /* 徽章（历史数量） */

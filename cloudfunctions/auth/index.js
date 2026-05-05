@@ -10,7 +10,8 @@ const _ = db.command
  * 用户认证云函数
  * 
  * 支持的操作：
- * - login: 微信登录（获取/创建用户）
+ * - quickLogin: 微信一键登录（静默登录，无需授权）
+ * - login: 微信登录（需用户授权获取头像昵称）
  * - getUserInfo: 获取用户详细信息
  * - updateUserInfo: 更新用户资料
  * - checkMembership: 检查会员状态
@@ -27,6 +28,9 @@ exports.main = async (event, context) => {
 
   try {
     switch (action) {
+      case 'quickLogin':
+        return await handleQuickLogin(openid, data)
+      
       case 'login':
         return await handleLogin(openid, data)
       
@@ -58,7 +62,82 @@ exports.main = async (event, context) => {
 }
 
 /**
- * 处理用户登录
+ * 处理微信一键登录（静默登录）
+ * 无需用户授权，直接通过 openid 完成登录/注册
+ */
+async function handleQuickLogin(openid, data) {
+  // 查询用户是否存在
+  const userRes = await db.collection('users').where({ openid }).get()
+  
+  if (userRes.data.length > 0) {
+    // 用户已存在，更新最后登录时间
+    const existingUser = userRes.data[0]
+    
+    await db.collection('users').doc(existingUser._id).update({
+      data: {
+        lastLoginTime: new Date(),
+        loginCount: _.inc(1)
+      }
+    })
+    
+    // 返回完整用户信息
+    const updatedUser = await db.collection('users').doc(existingUser._id).get()
+    
+    return {
+      success: true,
+      data: {
+        isNewUser: false,
+        user: updatedUser.data
+      },
+      message: '登录成功'
+    }
+  } else {
+    // 新用户，自动注册（使用默认信息）
+    const newUser = {
+      openid,
+      userInfo: {
+        nickname: '微信用户',
+        avatarUrl: ''
+      },
+      role: 'user',
+      membership: {
+        type: 'free',
+        expireTime: null,
+        autoRenew: false
+      },
+      usage: {
+        dailyCount: 0,
+        totalCount: 0,
+        lastResetDate: new Date().toISOString().split('T')[0]
+      },
+      stats: {
+        totalReports: 0,
+        timeSaved: 0,
+        favoritePosition: '',
+        achievements: []
+      },
+      createTime: new Date(),
+      lastLoginTime: new Date(),
+      loginCount: 1
+    }
+    
+    const addRes = await db.collection('users').add({ data: newUser })
+    
+    newUser._id = addRes._id
+    
+    return {
+      success: true,
+      data: {
+        isNewUser: true,
+        user: newUser
+      },
+      message: '注册成功'
+    }
+  }
+}
+
+/**
+ * 处理用户登录（需授权版本）
  * 如果用户不存在则自动注册
  */
 async function handleLogin(openid, data) {

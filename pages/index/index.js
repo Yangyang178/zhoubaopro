@@ -42,6 +42,13 @@ Page({
     canGetUserProfile: true,
     getUserProfileCooldown: USAGE_LIMIT.COOLDOWN_TIME, // 使用公共常量
 
+    // 撤销功能相关
+    showUndoToast: false,        // 是否显示撤销提示
+    undoCountdown: 3,            // 撤销倒计时（秒）
+    lastClearedField: '',        // 最后清除的字段名
+    lastClearedContent: '',      // 清除前的内容
+    undoTimer: null,              // 倒计时定时器
+
     // DeepSeek API 配置（前端直连模式）
     // ⚠️ 安全提示：API Key 存储在前端代码中，仅用于个人测试或内部使用
     // ⚠️ 生产环境建议使用云函数代理模式（apiProxy）以保护 API Key
@@ -318,6 +325,26 @@ Page({
     })
   },
 
+  /**
+   * 跳转到个人中心
+   */
+  goToProfile() {
+    wx.navigateTo({
+      url: '/pages/profile/profile'
+    })
+  },
+
+  /**
+   * 回到首页（刷新页面）
+   */
+  goToHome() {
+    // 如果已经在首页，则滚动到顶部
+    wx.pageScrollTo({
+      scrollTop: 0,
+      duration: 300
+    })
+  },
+
   selectPosition(e) {
     const id = e.currentTarget.dataset.id;
     this.setData({
@@ -335,6 +362,160 @@ Page({
     this.setData({
       nextPlan: e.detail.value
     });
+  },
+
+  /**
+   * 清除本周工作内容（带撤销功能）
+   */
+  clearWeeklyWork() {
+    const contentToClear = this.data.weeklyWork
+    
+    wx.showModal({
+      title: '确认清除',
+      content: '确定要清除"本周工作"的所有内容吗？',
+      confirmText: '清除',
+      confirmColor: '#e53e3e',
+      cancelText: '取消',
+      success: (res) => {
+        if (res.confirm) {
+          // 保存清除前的内容（用于撤销）
+          this.setData({ 
+            weeklyWork: '',
+            lastClearedField: 'weeklyWork',
+            lastClearedContent: contentToClear
+          })
+          
+          this.startUndoCountdown()
+        }
+      }
+    })
+  },
+
+  /**
+   * 清除下周计划内容（带撤销功能）
+   */
+  clearNextPlan() {
+    const contentToClear = this.data.nextPlan
+    
+    wx.showModal({
+      title: '确认清除',
+      content: '确定要清除"下周计划"的所有内容吗？',
+      confirmText: '清除',
+      confirmColor: '#e53e3e',
+      cancelText: '取消',
+      success: (res) => {
+        if (res.confirm) {
+          // 保存清除前的内容（用于撤销）
+          this.setData({ 
+            nextPlan: '',
+            lastClearedField: 'nextPlan',
+            lastClearedContent: contentToClear
+          })
+          
+          this.startUndoCountdown()
+        }
+      }
+    })
+  },
+
+  /**
+   * 清除问题与困难内容（带撤销功能）
+   */
+  clearProblems() {
+    const contentToClear = this.data.problems
+    
+    wx.showModal({
+      title: '确认清除',
+      content: '确定要清除"问题与困难"的所有内容吗？',
+      confirmText: '清除',
+      confirmColor: '#e53e3e',
+      cancelText: '取消',
+      success: (res) => {
+        if (res.confirm) {
+          // 保存清除前的内容（用于撤销）
+          this.setData({ 
+            problems: '',
+            lastClearedField: 'problems',
+            lastClearedContent: contentToClear
+          })
+          
+          this.startUndoCountdown()
+        }
+      }
+    })
+  },
+
+  /**
+   * 开始撤销倒计时
+   */
+  startUndoCountdown() {
+    // 清除之前的定时器
+    if (this.data.undoTimer) {
+      clearInterval(this.data.undoTimer)
+    }
+    
+    // 显示撤销提示
+    this.setData({
+      showUndoToast: true,
+      undoCountdown: 3
+    })
+    
+    // 启动倒计时
+    const timer = setInterval(() => {
+      let countdown = this.data.undoCountdown - 1
+      
+      if (countdown <= 0) {
+        // 倒计时结束，隐藏提示
+        clearInterval(timer)
+        this.setData({
+          showUndoToast: false,
+          undoCountdown: 3,
+          undoTimer: null,
+          lastClearedField: '',
+          lastClearedContent: ''
+        })
+      } else {
+        // 更新倒计时显示
+        this.setData({ undoCountdown: countdown })
+      }
+    }, 1000)
+    
+    // 保存定时器引用
+    this.setData({ undoTimer: timer })
+  },
+
+  /**
+   * 撤销清除操作
+   */
+  undoClear() {
+    const { lastClearedField, lastClearedContent } = this.data
+    
+    if (!lastClearedField || !lastClearedContent) {
+      return
+    }
+    
+    // 清除定时器
+    if (this.data.undoTimer) {
+      clearInterval(this.data.undoTimer)
+    }
+    
+    // 恢复数据
+    const updateData = {
+      [lastClearedField]: lastClearedContent,
+      showUndoToast: false,
+      undoCountdown: 3,
+      undoTimer: null,
+      lastClearedField: '',
+      lastClearedContent: ''
+    }
+    
+    this.setData(updateData)
+    
+    wx.showToast({
+      title: '已撤销 ✓',
+      icon: 'success',
+      duration: 1500
+    })
   },
 
   onProblemInput(e) {

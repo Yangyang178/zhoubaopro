@@ -11,13 +11,22 @@
       
       <view class="login-info">
         <text class="login-title">欢迎使用周报Pro</text>
-        <text class="login-desc">登录后享受完整功能</text>
+        <text class="login-desc">一键登录，即刻体验</text>
       </view>
       
-      <button class="login-btn" bindtap="handleLogin">
-        <text class="login-btn-icon">🔑</text>
-        <text class="login-btn-text">微信一键登录</text>
+      <!-- 微信一键登录按钮 -->
+      <button 
+        class="wechat-login-btn" 
+        bindtap="handleLogin"
+        hover-class="wechat-login-btn-hover"
+      >
+        <text class="wechat-icon-emoji">💚</text>
+        <text class="wechat-login-text">微信一键登录</text>
       </button>
+      
+      <view class="login-tips">
+        <text class="tips-text">🔒 安全登录 · 无需授权 · 即点即用</text>
+      </view>
       
       <view class="login-features">
         <view class="feature-item">
@@ -49,25 +58,46 @@
       <!-- 背景装饰 -->
       <view class="card-bg"></view>
       
-      <!-- 用户头像和基本信息 -->
+      <!-- 用户头像和基本信息（可编辑） -->
       <view class="user-header">
-        <image 
-          class="user-avatar" 
-          src="{{userInfo.avatarUrl}}" 
-          mode="aspectFill"
-          wx:if="{{userInfo.avatarUrl}}"
-        ></image>
-        <view class="user-avatar placeholder" wx:else>
-          <text>{{userInfo.nickname ? userInfo.nickname[0] : '?'}}</text>
-        </view>
-        
-        <view class="user-basic">
-          <text class="user-nickname">{{userInfo.nickname || '微信用户'}}</text>
-          <view class="member-badge {{membership.isMember ? 'active' : ''}}">
-            <text class="badge-text">{{membership.typeText}}</text>
+        <!-- 头像 - 可点击更换 -->
+        <view class="avatar-wrapper" bindtap="chooseAvatar">
+          <image 
+            class="user-avatar" 
+            src="{{userInfo.avatarUrl}}" 
+            mode="aspectFill"
+            wx:if="{{userInfo.avatarUrl}}"
+          ></image>
+          <view class="user-avatar placeholder" wx:else>
+            <text>{{userInfo.nickname ? userInfo.nickname[0] : '?'}}</text>
+          </view>
+          
+          <!-- 头像编辑提示 -->
+          <view class="avatar-edit-hint" wx:if="{{!userInfo.avatarUrl}}">
+            <text class="edit-icon">📷</text>
+          </view>
+          <view class="avatar-edit-badge" wx:else>
+            <text class="badge-text">✏️</text>
           </view>
         </view>
         
+        <!-- 昵称和会员信息 - 可编辑 -->
+        <view class="user-basic" bindtap="editNickname">
+          <view class="nickname-row">
+            <text class="user-nickname">{{userInfo.nickname || '微信用户'}}</text>
+            <text class="edit-pen">✏️</text>
+          </view>
+          <view class="member-badge {{membership.isMember ? 'active' : ''}}">
+            <text class="badge-text">{{membership.typeText}}</text>
+          </view>
+          
+          <!-- 编辑提示文字 -->
+          <text class="edit-hint" wx:if="{{!userInfo.avatarUrl || userInfo.nickname === '微信用户'}}">
+            点击完善资料 →
+          </text>
+        </view>
+        
+        <!-- 设置按钮 -->
         <button class="settings-btn" bindtap="handleLogout" hover-class="none">
           <text class="settings-icon">⋮⋮</text>
         </button>

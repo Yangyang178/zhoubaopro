@@ -66,33 +66,55 @@ page {
   display: block;
 }
 
-.login-btn {
+/* ==================== 微信一键登录按钮（专用） ==================== */
+.wechat-login-btn {
   width: 100%;
   height: 96rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #07c160 0%, #06ae56 100%);
   border-radius: 48rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 16rpx;
-  box-shadow: 0 12rpx 32rpx rgba(102, 126, 234, 0.4);
-  margin-bottom: 40rpx;
+  box-shadow: 0 12rpx 32rpx rgba(7, 193, 96, 0.35);
+  margin-bottom: 24rpx;
   transition: all 0.3s ease;
+  border: none;
+  padding: 0;
+  line-height: normal;
 }
 
-.login-btn:active {
+.wechat-login-btn::after {
+  border: none;
+}
+
+.wechat-login-btn-hover {
   transform: scale(0.98);
-  box-shadow: 0 6rpx 20rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 6rpx 20rpx rgba(7, 193, 96, 0.25);
+  opacity: 0.9;
 }
 
-.login-btn-icon {
-  font-size: 36rpx;
+.wechat-icon-emoji {
+  font-size: 40rpx;
 }
 
-.login-btn-text {
-  font-size: 32rpx;
+.wechat-login-text {
+  font-size: 34rpx;
   font-weight: 600;
   color: #ffffff;
+  letter-spacing: 2rpx;
+}
+
+.login-tips {
+  text-align: center;
+  margin-bottom: 28rpx;
+}
+
+.login-tips .tips-text {
+  font-size: 24rpx;
+  color: #07c160;
+  font-weight: 500;
+  display: block;
 }
 
 .login-features {
@@ -176,6 +198,12 @@ page {
   z-index: 1;
 }
 
+/* 头像容器（可点击） */
+.avatar-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
 .user-avatar {
   width: 112rpx;
   height: 112rpx;
@@ -202,11 +230,57 @@ page {
   color: #ffffff;
 }
 
+/* 头像编辑提示（无头像时） */
+.avatar-edit-hint {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 40rpx;
+  height: 40rpx;
+  background: #667eea;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3rpx solid #ffffff;
+  box-shadow: 0 2rpx 8rpx rgba(102, 126, 234, 0.3);
+}
+
+.avatar-edit-hint .edit-icon {
+  font-size: 20rpx;
+}
+
+/* 头像编辑徽章（有头像时） */
+.avatar-edit-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 36rpx;
+  height: 36rpx;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid #ffffff;
+}
+
+.avatar-edit-badge .badge-text {
+  font-size: 18rpx;
+}
+
 .user-basic {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 8rpx;
+}
+
+/* 昵称行（包含昵称和编辑图标） */
+.nickname-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
 }
 
 .user-nickname {
@@ -216,7 +290,23 @@ page {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 360rpx;
+  max-width: 320rpx;
+}
+
+/* 编辑笔图标 */
+.edit-pen {
+  font-size: 28rpx;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+/* 完善资料提示文字 */
+.edit-hint {
+  font-size: 24rpx;
+  color: #667eea;
+  font-weight: 500;
+  margin-top: 4rpx;
+  display: block;
 }
 
 .member-badge {

@@ -1,34 +1,7 @@
 <!--index.wxml-->
-<navigation-bar title="报报pro" back="{{false}}" color="white" background="#667eea"></navigation-bar>
+<navigation-bar title="周报Pro" back="{{false}}" color="white" background="#667eea"></navigation-bar>
 <scroll-view class="scrollarea" scroll-y type="list">
   <view class="container">
-
-    <!-- 用户信息区域 -->
-    <view class="user-info-section">
-      <view class="user-profile">
-        <view 
-          class="user-avatar-wrapper"
-          bindtap="getUserProfile"
-        >
-          <image
-            wx:if="{{userInfo.avatarUrl}}"
-            class="user-avatar-img"
-            src="{{userInfo.avatarUrl}}"
-            mode="aspectFill"
-          ></image>
-          <view wx:else class="user-avatar-default">
-            <text class="avatar-emoji">👤</text>
-          </view>
-        </view>
-        <view class="user-details">
-          <text class="user-nickname">{{userInfo.nickname || '点击登录'}}</text>
-          <text class="user-bio">{{userInfo.bio || 'AI智能周报助手，让工作汇报更轻松'}}</text>
-        </view>
-        <view class="login-btn-wrapper" wx:if="{{!userInfo.nickname}}">
-          <button class="login-btn" bindtap="getUserProfile" size="mini">登录</button>
-        </view>
-      </view>
-    </view>
 
     <!-- 头部区域 -->
     <view class="header">
@@ -55,16 +28,29 @@
     <!-- 本周工作输入区 -->
     <view class="section work-section">
       <text class="section-title">📋 本周工作</text>
-      <textarea
-        class="textarea-large"
-        placeholder="例如：完成了登录模块开发，修复了3个bug..."
-        maxlength="1000"
-        auto-height
-        value="{{weeklyWork}}"
-        bindinput="onWorkInput"
-        placeholder-class="placeholder-text"
-      ></textarea>
-      <text class="char-count">{{weeklyWork.length}}/1000</text>
+      <view class="textarea-wrapper">
+        <textarea
+          class="textarea-large"
+          placeholder="例如：完成了登录模块开发，修复了3个bug..."
+          maxlength="1000"
+          auto-height
+          value="{{weeklyWork}}"
+          bindinput="onWorkInput"
+          placeholder-class="placeholder-text"
+        ></textarea>
+        
+        <!-- 操作栏：字数统计 + 清除按钮 -->
+        <view class="textarea-actions">
+          <text class="char-count">{{weeklyWork.length}}/1000</text>
+          <view 
+            class="clear-btn {{weeklyWork ? 'visible' : ''}}" 
+            wx:if="{{weeklyWork}}"
+            bindtap="clearWeeklyWork"
+          >
+            <text class="clear-btn-text">🗑️ 清除</text>
+          </view>
+        </view>
+      </view>
       
       <!-- 模板快捷入口 -->
       <view class="template-trigger" bindtap="toggleTemplatePicker">
@@ -95,31 +81,65 @@
     <!-- 下周计划输入区 -->
     <view class="section plan-section">
       <text class="section-title">📅 下周计划</text>
-      <textarea
-        class="textarea-medium"
-        placeholder="例如：开始订单系统开发..."
-        maxlength="500"
-        auto-height
-        value="{{nextPlan}}"
-        bindinput="onPlanInput"
-        placeholder-class="placeholder-text"
-      ></textarea>
-      <text class="char-count">{{nextPlan.length}}/500</text>
+      <view class="textarea-wrapper">
+        <textarea
+          class="textarea-medium"
+          placeholder="例如：开始订单系统开发..."
+          maxlength="500"
+          auto-height
+          value="{{nextPlan}}"
+          bindinput="onPlanInput"
+          placeholder-class="placeholder-text"
+        ></textarea>
+        
+        <!-- 操作栏：字数统计 + 清除按钮 -->
+        <view class="textarea-actions">
+          <text class="char-count">{{nextPlan.length}}/500</text>
+          <view 
+            class="clear-btn {{nextPlan ? 'visible' : ''}}" 
+            wx:if="{{nextPlan}}"
+            bindtap="clearNextPlan"
+          >
+            <text class="clear-btn-text">🗑️ 清除</text>
+          </view>
+        </view>
+      </view>
     </view>
 
     <!-- 问题与困难输入区 -->
     <view class="section problem-section">
       <text class="section-title">⚠️ 问题与困难</text>
-      <textarea
-        class="textarea-medium"
-        placeholder="遇到的困难，没有可填无"
-        maxlength="500"
-        auto-height
-        value="{{problems}}"
-        bindinput="onProblemInput"
-        placeholder-class="placeholder-text"
-      ></textarea>
-      <text class="char-count">{{problems.length}}/500</text>
+      <view class="textarea-wrapper">
+        <textarea
+          class="textarea-medium"
+          placeholder="遇到的困难，没有可填无"
+          maxlength="500"
+          auto-height
+          value="{{problems}}"
+          bindinput="onProblemInput"
+          placeholder-class="placeholder-text"
+        ></textarea>
+        
+        <!-- 操作栏：字数统计 + 清除按钮 -->
+        <view class="textarea-actions">
+          <text class="char-count">{{problems.length}}/500</text>
+          <view 
+            class="clear-btn {{problems ? 'visible' : ''}}" 
+            wx:if="{{problems}}"
+            bindtap="clearProblems"
+          >
+            <text class="clear-btn-text">🗑️ 清除</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 撤销提示条（清除后显示） -->
+    <view class="undo-toast {{showUndoToast ? 'visible' : ''}}" wx:if="{{showUndoToast}}">
+      <text class="undo-text">已清除内容</text>
+      <view class="undo-btn" bindtap="undoClear">
+        <text class="undo-btn-text">↩️ 撤销 ({{undoCountdown}}s)</text>
+      </view>
     </view>
 
     <!-- 精美按钮组区域 -->
@@ -239,6 +259,25 @@
           <text class="action-icon">�</text>
           <text>查看历史</text>
         </button>
+      </view>
+    </view>
+
+    <!-- 底部导航栏（无TabBar时的替代方案） -->
+    <view class="bottom-nav">
+      <view class="nav-item active" bindtap="goToHome">
+        <text class="nav-icon">🏠</text>
+        <text class="nav-text">首页</text>
+        <view class="active-indicator"></view>
+      </view>
+      
+      <view class="nav-item" bindtap="goToHistory">
+        <text class="nav-icon">📚</text>
+        <text class="nav-text">历史记录</text>
+      </view>
+      
+      <view class="nav-item" bindtap="goToProfile">
+        <text class="nav-icon">👤</text>
+        <text class="nav-text">个人中心</text>
       </view>
     </view>
 
