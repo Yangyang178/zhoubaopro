@@ -13,7 +13,7 @@ page {
 
 .container {
   padding: 30rpx;
-  padding-bottom: 180rpx;
+  padding-bottom: 300rpx;  /* 大幅增加底部内边距，确保所有按钮不被固定导航栏遮挡 */
 }
 
 /* ==================== 用户信息区域 ==================== */
@@ -866,84 +866,176 @@ page {
   border-color: #a3bffa;
 }
 
-/* ==================== 底部导航栏 ==================== */
+/* ==================== 底部导航栏（固定定位 + 精美设计） - 紧凑版 ==================== */
 .bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+
   display: flex;
   align-items: center;
   justify-content: space-around;
-  padding: 20rpx 0;
-  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
-  background: #ffffff;
-  border-top: 2rpx solid #f0f0f0;
-  position: sticky;
-  bottom: 0;
-  z-index: 100;
-  box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.05);
+
+  /* 减小上下内边距，降低整体高度 */
+  padding: 10rpx 0;
+  padding-bottom: calc(10rpx + env(safe-area-inset-bottom));
+
+  /* 毛玻璃效果 */
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+
+  /* 顶部边框和阴影 */
+  border-top: 1rpx solid rgba(102, 126, 234, 0.1);
+  box-shadow:
+    0 -6rpx 24rpx rgba(102, 126, 234, 0.08),
+    0 -3rpx 12rpx rgba(0, 0, 0, 0.04);
+
+  z-index: 9999;
+
+  /* 平滑过渡 */
+  transition: all 0.3s ease;
 }
 
+/* 导航项容器 */
 .nav-item {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8rpx;
-  padding: 16rpx 0;
+  gap: 4rpx;  /* 减小图标与文字间距 */
+  padding: 8rpx 0;  /* 减小内边距 */
   position: relative;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
-.nav-item:active {
+/* 图标外层容器（圆形背景）- 紧凑版 */
+.nav-icon-wrapper {
+  width: 80rpx;   /* 从 96rpx 减小到 80rpx */
+  height: 80rpx;  /* 从 96rpx 减小到 80rpx */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* 默认状态：透明背景 */
+  background: transparent;
+
+  /* 过渡效果 */
+  transition: all 0.35s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* 活跃状态的图标容器 */
+.nav-item.active .nav-icon-wrapper {
+  /* 渐变圆形背景 */
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+  /* 阴影效果（稍微减小） */
+  box-shadow:
+    0 6rpx 20rpx rgba(102, 126, 234, 0.35),
+    0 3rpx 10rpx rgba(118, 75, 162, 0.25);
+
+  /* 轻微放大 */
+  transform: scale(1.04);  /* 从 1.05 减小到 1.04 */
+}
+
+/* 点击反馈 */
+.nav-item:active .nav-icon-wrapper {
   transform: scale(0.95);
-  background: rgba(102, 126, 234, 0.05);
-  border-radius: 16rpx;
 }
 
+.nav-item.active:active .nav-icon-wrapper {
+  transform: scale(1.0);
+}
+
+/* 图标文字 - 紧凑版 */
 .nav-icon {
-  font-size: 44rpx;
+  font-size: 40rpx;  /* 从 44rpx 减小到 40rpx */
   line-height: 1;
+
+  /* 活跃状态图标变大变亮 */
+  transition: all 0.3s ease;
 }
 
+.nav-item.active .nav-icon {
+  font-size: 44rpx;  /* 从 48rpx 减小到 44rpx */
+  filter: drop-shadow(0 2rpx 6rpx rgba(102, 126, 234, 0.25));
+}
+
+/* 导航文字 - 紧凑版 */
 .nav-text {
-  font-size: 24rpx;
-  color: #909399;
+  font-size: 20rpx;  /* 从 22rpx 减小到 20rpx */
+  color: #a0aec0;
   font-weight: 500;
+  letter-spacing: 0.5rpx;
+  transition: all 0.3s ease;
 }
 
+/* 活跃状态文字 */
 .nav-item.active .nav-text {
   color: #667eea;
   font-weight: 700;
+  font-size: 22rpx;  /* 从 24rpx 减小到 22rpx */
+  text-shadow: 0 2rpx 6rpx rgba(102, 126, 234, 0.12);
 }
 
+/* 活跃指示器（底部小横条） */
 .active-indicator {
   position: absolute;
-  bottom: 8rpx;
-  width: 40rpx;
-  height: 6rpx;
+  bottom: 6rpx;
+  width: 36rpx;
+  height: 5rpx;
   background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
   border-radius: 3rpx;
+  
+  /* 动画效果 */
+  animation: indicatorPulse 2s ease-in-out infinite;
+}
+
+@keyframes indicatorPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scaleX(0.85);
+  }
 }
 
 /* 徽章（历史数量） */
 .badge {
   position: absolute;
-  top: 12rpx;
-  right: 20rpx;
-  min-width: 36rpx;
-  height: 36rpx;
+  top: 8rpx;
+  right: 50%;
+  margin-right: -40rpx;
+  min-width: 32rpx;
+  height: 32rpx;
   background: linear-gradient(135deg, #f56565 0%, #fc8181 100%);
-  border-radius: 18rpx;
+  border-radius: 16rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 10rpx;
-  box-shadow: 0 2rpx 8rpx rgba(245, 101, 101, 0.4);
+  padding: 0 8rpx;
+  box-shadow:
+    0 4rpx 12rpx rgba(245, 101, 101, 0.4),
+    0 2rpx 6rpx rgba(252, 129, 129, 0.3);
   animation: badgeBounce 2s ease-in-out infinite;
+  z-index: 10;
+}
+
+.badge-text {
+  font-size: 18rpx;
+  color: #ffffff;
+  font-weight: 700;
+  line-height: 1;
 }
 
 @keyframes badgeBounce {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
+  50% { transform: scale(1.15); }
 }
 
 .badge-text {

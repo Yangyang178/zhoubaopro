@@ -262,24 +262,30 @@
       </view>
     </view>
 
-    <!-- 底部导航栏（无TabBar时的替代方案） -->
-    <view class="bottom-nav">
-      <view class="nav-item active" bindtap="goToHome">
-        <text class="nav-icon">🏠</text>
-        <text class="nav-text">首页</text>
-        <view class="active-indicator"></view>
-      </view>
-      
-      <view class="nav-item" bindtap="goToHistory">
-        <text class="nav-icon">📚</text>
-        <text class="nav-text">历史记录</text>
-      </view>
-      
-      <view class="nav-item" bindtap="goToProfile">
-        <text class="nav-icon">👤</text>
-        <text class="nav-text">个人中心</text>
-      </view>
-    </view>
-
   </view>
 </scroll-view>
+
+<!-- 底部导航栏（固定在页面底部） -->
+<view class="bottom-nav">
+  <view class="nav-item active" bindtap="goToHome">
+    <view class="nav-icon-wrapper">
+      <text class="nav-icon">🏠</text>
+    </view>
+    <text class="nav-text">首页</text>
+    <view class="active-indicator"></view>
+  </view>
+
+  <view class="nav-item" bindtap="goToHistory">
+    <view class="nav-icon-wrapper">
+      <text class="nav-icon">📚</text>
+    </view>
+    <text class="nav-text">历史记录</text>
+  </view>
+
+  <view class="nav-item" bindtap="goToProfile">
+    <view class="nav-icon-wrapper">
+      <text class="nav-icon">👤</text>
+    </view>
+    <text class="nav-text">个人中心</text>
+  </view>
+</view>
