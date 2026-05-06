@@ -106,13 +106,13 @@
       <!-- 数据统计 -->
       <view class="stats-row">
         <view class="stat-item">
-          <text class="stat-number">{{usage.totalCount || stats.totalReports || 0}}</text>
-          <text class="stat-label">总生成数</text>
+          <text class="stat-number">{{formattedStats.cards[0].value || 0}}</text>
+          <text class="stat-label">{{formattedStats.cards[0].title}}</text>
         </view>
         <view class="stat-divider"></view>
         <view class="stat-item">
-          <text class="stat-number">{{stats.timeSaved || 0}}h</text>
-          <text class="stat-label">节省时间</text>
+          <text class="stat-number">{{formattedStats.cards[1].value || '0h'}}</text>
+          <text class="stat-label">{{formattedStats.cards[1].title}}</text>
         </view>
         <view class="stat-divider"></view>
         <view class="stat-item">
@@ -120,6 +120,177 @@
           <text class="stat-label">今日剩余</text>
         </view>
       </view>
+    </view>
+
+    <!-- 📊 数据统计与分析面板（新增） -->
+    <view class="analytics-panel" wx:if="{{isLoggedIn}}">
+
+      <!-- ✨ 效率评分卡片（全新设计） -->
+      <view class="efficiency-card-premium">
+        <view class="efficiency-bg-animation"></view>
+        <view class="efficiency-content">
+          <view class="efficiency-header-premium">
+            <view class="header-left">
+              <text class="efficiency-icon">🎯</text>
+              <view class="header-text">
+                <text class="efficiency-title-premium">工作效率评分</text>
+                <text class="efficiency-subtitle">基于你的使用数据智能分析</text>
+              </view>
+            </view>
+          </view>
+
+          <view class="score-display">
+            <view class="score-circle-premium {{formattedStats.efficiencyScore >= 80 ? 'excellent' : (formattedStats.efficiencyScore >= 60 ? 'good' : 'normal')}}">
+              <view class="score-ring">
+                <view class="score-inner">
+                  <text class="score-number-premium">{{formattedStats.efficiencyScore || 0}}</text>
+                  <text class="score-unit-premium">分</text>
+                </view>
+              </view>
+              <view class="score-glow"></view>
+            </view>
+            <view class="score-badge">
+              <text class="badge-text-premium" wx:if="{{formattedStats.efficiencyScore >= 80}}">🌟 效率超人</text>
+              <text class="badge-text-premium" wx:elif="{{formattedStats.efficiencyScore >= 60}}">👍 表现良好</text>
+              <text class="badge-text-premium" wx:else>💪 继续加油</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 🎴 核心指标网格（升级版） -->
+      <view class="metrics-grid-premium">
+        <view
+          class="metric-card-premium"
+          wx:for="{{formattedStats.cards}}"
+          wx:key="title"
+          style="--card-color: {{item.color}};"
+        >
+          <view class="metric-card-bg" style="background: {{item.color}}08;"></view>
+          <view class="metric-icon-premium" style="background: linear-gradient(135deg, {{item.color}}20 0%, {{item.color}}40 100%);">
+            <text class="metric-emoji">{{item.icon}}</text>
+          </view>
+          <view class="metric-data">
+            <text class="metric-value-premium" style="color: {{item.color}};">{{item.value}}{{item.unit}}</text>
+            <text class="metric-label-premium">{{item.title}}</text>
+          </view>
+          <view class="metric-trend-badge {{item.trend || 'neutral'}}" wx:if="{{item.trend}}">
+            <text class="trend-icon-premium">{{item.trend === 'up' ? '↑' : '↓'}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 📈 本周趋势图表（精美版） -->
+      <view class="trend-section-premium">
+        <view class="section-header-premium">
+          <view class="title-group">
+            <text class="section-icon-premium">📈</text>
+            <text class="section-title-premium">本周生成趋势</text>
+          </view>
+          <text class="section-tag">近7天</text>
+        </view>
+
+        <view class="chart-container-premium">
+          <view class="chart-bars-premium">
+            <view
+              class="bar-wrapper-premium"
+              wx:for="{{formattedStats.weeklyTrend}}"
+              wx:key="day"
+            >
+              <view class="bar-info">
+                <text class="bar-count-premium" wx:if="{{item.count > 0}}">{{item.count}}</text>
+              </view>
+              <view class="bar-container">
+                <view
+                  class="bar-fill-premium {{item.isToday ? 'today' : ''}}"
+                  style="height: {{item.count > 0 ? (item.count * 25) : 4}}rpx;"
+                >
+                  <view class="bar-shine" wx:if="{{item.count > 0}}"></view>
+                </view>
+              </view>
+              <text class="bar-day-premium {{item.isToday ? 'active' : ''}}">{{item.day.slice(-1)}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 岗位分布（保持原有，如有数据才显示） -->
+      <view class="distribution-section-premium" wx:if="{{formattedStats.positionDistribution.length > 0}}">
+        <view class="section-header-premium">
+          <view class="title-group">
+            <text class="section-icon-premium">💼</text>
+            <text class="section-title-premium">岗位使用分布</text>
+          </view>
+        </view>
+
+        <view class="distribution-list-premium">
+          <view
+            class="dist-item-premium"
+            wx:for="{{formattedStats.positionDistribution}}"
+            wx:key="name"
+          >
+            <view class="dist-header-premium">
+              <text class="dist-name-premium">{{item.name}}</text>
+              <text class="dist-percent-premium">{{item.percentage}}%</text>
+            </view>
+            <view class="dist-bar-container">
+              <view
+                class="dist-bar-fill-premium"
+                style="width: {{item.percentage}}%;"
+              ></view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 高峰时段（保持原有，如有数据才显示） -->
+      <view class="peak-hours-section-premium" wx:if="{{formattedStats.peakHours.length > 0}}">
+        <view class="section-header-premium">
+          <view class="title-group">
+            <text class="section-icon-premium">⏰</text>
+            <text class="section-title-premium">高峰活跃时段</text>
+          </view>
+        </view>
+
+        <view class="peak-list-premium">
+          <view
+            class="peak-item-premium"
+            wx:for="{{formattedStats.peakHours}}"
+            wx:key="hour"
+          >
+            <view class="peak-rank-premium {{index === 0 ? 'gold' : (index === 1 ? 'silver' : 'bronze')}}">
+              <text class="rank-text">{{index + 1}}</text>
+            </view>
+            <view class="peak-info-premium">
+              <text class="peak-time-premium">{{item.label}}</text>
+              <text class="peak-desc-premium">最活跃时段</text>
+            </view>
+            <text class="peak-count-premium">{{item.count}}次</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 🎁 月度报告入口卡片（豪华版） -->
+      <view class="monthly-report-premium" bindtap="generateMonthlyReport">
+        <view class="monthly-bg-pattern"></view>
+        <view class="monthly-content">
+          <view class="monthly-left-premium">
+            <view class="monthly-icon-wrapper">
+              <text class="monthly-icon-premium">📊</text>
+            </view>
+            <view class="monthly-text-group">
+              <text class="monthly-title-premium">本月工作报告</text>
+              <text class="monthly-desc-premium">点击生成专属月度总结 · 智能分析</text>
+            </view>
+          </view>
+          <view class="monthly-right-premium">
+            <text class="monthly-action">生成</text>
+            <text class="monthly-arrow-premium">→</text>
+          </view>
+        </view>
+        <view class="monthly-shine"></view>
+      </view>
+
     </view>
 
     <!-- 今日使用情况 -->

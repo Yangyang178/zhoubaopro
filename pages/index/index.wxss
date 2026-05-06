@@ -1306,3 +1306,236 @@ page {
     0 1rpx 4rpx rgba(102, 126, 234, 0.15);
   border-color: #a3bffa;
 }
+
+/* ==================== 导出按钮（新增） ==================== */
+.export-btn-new {
+  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+  color: #ffffff;
+  box-shadow: 
+    0 8rpx 28rpx rgba(66, 153, 225, 0.4),
+    0 2rpx 8rpx rgba(66, 153, 225, 0.15);
+}
+
+.export-btn-new:active {
+  transform: scale(0.97) translateY(4rpx);
+  box-shadow: 
+    0 4rpx 16rpx rgba(66, 153, 225, 0.3),
+    0 1rpx 4rpx rgba(66, 153, 225, 0.2);
+}
+
+.export-arrow {
+  font-size: 20rpx;
+  margin-left: 4rpx;
+  opacity: 0.7;
+}
+
+/* ==================== 导出格式选择器（弹出层） ==================== */
+.export-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.export-modal.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* 遮罩层 */
+.export-modal-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+/* 弹出内容容器 */
+.export-modal-content {
+  position: relative;
+  width: 100%;
+  max-height: 80vh;
+  background: #ffffff;
+  border-radius: 32rpx 32rpx 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  animation: slideUpModal 0.35s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  box-shadow: 0 -8rpx 40rpx rgba(0, 0, 0, 0.15);
+}
+
+@keyframes slideUpModal {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* 标题栏 */
+.export-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx 32rpx 24rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.export-modal-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.export-modal-close {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f7fafc;
+  transition: all 0.25s ease;
+}
+
+.export-modal-close:active {
+  background: #edf2f7;
+  transform: scale(0.95);
+}
+
+.close-icon {
+  font-size: 28rpx;
+  color: #718096;
+  line-height: 1;
+}
+
+/* 格式选项列表 */
+.export-options {
+  padding: 16rpx 0;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* 单个选项 */
+.export-option {
+  display: flex;
+  align-items: center;
+  padding: 28rpx 32rpx;
+  gap: 24rpx;
+  transition: all 0.25s ease;
+  position: relative;
+}
+
+.export-option-hover {
+  background: linear-gradient(135deg, #ebf4ff 0%, #e6f2ff 100%);
+}
+
+.export-option:active {
+  background: #dbeafe;
+  transform: scale(0.98);
+}
+
+/* 图标容器 */
+.option-icon-wrapper {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.option-icon-wrapper.markdown {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+}
+
+.option-icon-wrapper.text {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+}
+
+.option-icon-wrapper.word {
+  background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+}
+
+.option-icon-wrapper.pdf {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+}
+
+.option-icon-wrapper.image {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+}
+
+.option-icon {
+  font-size: 40rpx;
+  line-height: 1;
+}
+
+/* 选项信息 */
+.option-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.option-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1a202c;
+}
+
+.option-desc {
+  font-size: 24rpx;
+  color: #718096;
+  font-weight: 400;
+}
+
+/* 箭头 */
+.option-arrow {
+  font-size: 36rpx;
+  color: #cbd5e0;
+  font-weight: 300;
+}
+
+/* PRO 徽章 */
+.option-badge {
+  padding: 6rpx 16rpx;
+  border-radius: 12rpx;
+  font-size: 20rpx;
+  font-weight: 700;
+  letter-spacing: 1rpx;
+}
+
+.option-badge.pro {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #ffffff;
+  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+}
+
+/* 底部提示 */
+.export-modal-footer {
+  padding: 24rpx 32rpx;
+  border-top: 1rpx solid #f0f0f0;
+  background: #fafbff;
+}
+
+.footer-tip {
+  font-size: 22rpx;
+  color: #718096;
+  text-align: center;
+  line-height: 1.5;
+  display: block;
+}

@@ -1,11 +1,12 @@
 const app = getApp()
+const { statisticsManager } = require('../../utils/statistics')
 
 Page({
   data: {
     userInfo: null,
     isLoggedIn: false,
     isLoading: true,
-    
+
     // 用户统计数据（本地存储）
     stats: {
       totalReports: 0,
@@ -13,7 +14,17 @@ Page({
       favoritePosition: '',
       achievements: []
     },
-    
+
+    // 格式化后的统计数据（用于UI展示）
+    formattedStats: {
+      efficiencyScore: 0,
+      cards: [],
+      weeklyTrend: [],
+      positionDistribution: [],
+      peakHours: [],
+      achievements: []
+    },
+
     // 会员状态
     membership: {
       isMember: false,
@@ -22,7 +33,7 @@ Page({
       typeText: '免费版',
       typeColor: '#909399'
     },
-    
+
     // 使用统计
     usage: {
       dailyCount: 0,
@@ -288,23 +299,38 @@ Page({
       const cachedInfo = wx.getStorageSync('userInfo')
       const stats = wx.getStorageSync('userStats') || {}
       const usage = wx.getStorageSync('userUsage') || {}
-      
+
       if (cachedInfo) {
         this.setData({
           userInfo: cachedInfo
         })
       }
-      
+
       if (Object.keys(stats).length > 0) {
         this.setData({ stats })
       }
-      
+
       if (Object.keys(usage).length > 0) {
         this.setData({ usage })
       }
-      
+
+      // 加载格式化的统计数据
+      this.loadFormattedStats()
+
     } catch (error) {
       console.log('[loadUserData] 加载本地数据失败，使用默认值')
+    }
+  },
+
+  /**
+   * 加载并格式化统计数据显示
+   */
+  loadFormattedStats() {
+    try {
+      const formattedStats = statisticsManager.getFormattedStats()
+      this.setData({ formattedStats })
+    } catch (error) {
+      console.error('[loadFormattedStats] 加载统计数据失败:', error)
     }
   },
 
@@ -410,7 +436,7 @@ Page({
           wx.removeStorageSync('userInfo')
           wx.removeStorageSync('userStats')
           wx.removeStorageSync('userUsage')
-          
+
           this.setData({
             isLoggedIn: false,
             userInfo: null,
@@ -432,6 +458,14 @@ Page({
               totalCount: 0,
               remainingCount: 5,
               dailyLimit: 5
+            },
+            formattedStats: {
+              efficiencyScore: 0,
+              cards: [],
+              weeklyTrend: [],
+              positionDistribution: [],
+              peakHours: [],
+              achievements: []
             }
           })
 
@@ -440,6 +474,87 @@ Page({
             icon: 'success'
           })
         }
+      }
+    })
+  },
+
+  /**
+   * 生成月度报告
+   */
+  async generateMonthlyReport() {
+    wx.showLoading({ title: '正在生成月报...' })
+
+    try {
+      const now = new Date()
+      const monthlyReport = statisticsManager.generateMonthlyReport(now.getFullYear(), now.getMonth() + 1)
+
+      wx.hideLoading()
+
+      if (!monthlyReport.success) {
+        wx.showToast({
+          title: monthlyReport.message || '暂无数据',
+          icon: 'none',
+          duration: 2000
+        })
+        return
+      }
+
+      const { data } = monthlyReport
+
+      // 显示月度报告弹窗
+      wx.showModal({
+        title: `📊 ${data.period} 月度报告`,
+        content: `本月表现：${data.overview.activeDays}天活跃\n\n📈 核心数据:\n• 累计生成 ${data.overview.totalReports} 份周报\n• 节省约 ${data.overview.timeSaved}\n• 使用 ${data.overview.uniquePositions} 个岗位模板\n• 日均 ${data.overview.avgPerDay} 份\n\n💡 最勤奋的一天：${data.highlights.mostProductiveDay.date}`,
+        showCancel: true,
+        confirmText: '分享报告',
+        cancelText: '关闭',
+        success: (res) => {
+          if (res.confirm) {
+            this.shareMonthlyReport(data)
+          }
+        }
+      })
+
+    } catch (error) {
+      wx.hideLoading()
+      console.error('[generateMonthlyReport] 生成月度报告失败:', error)
+
+      wx.showToast({
+        title: '生成失败，请重试',
+        icon: 'none',
+        duration: 2000
+      })
+    }
+  },
+
+  /**
+   * 分享月度报告
+   */
+  shareMonthlyReport(data) {
+    const shareContent = `
+【周报Pro - 我的月度报告】
+${data.period}
+
+📈 本月数据:
+✅ 活跃天数 ${data.overview.activeDays} 天
+✅ 生成周报 ${data.overview.totalReports} 份
+⏱️ 节省时间 ${data.overview.timeSaved}
+💼 使用岗位 ${data.overview.uniquePositions} 个
+📊 日均产出 ${data.overview.avgPerDay} 份
+
+🏆 最常用岗位: ${data.highlights.topPosition}
+⚡ 平均耗时: ${data.highlights.avgGenerationTime}
+
+—— 来自周报Pro AI智能助手
+    `.trim()
+
+    wx.setClipboardData({
+      data: shareContent,
+      success: () => {
+        wx.showToast({
+          title: '报告已复制到剪贴板 ✨',
+          icon: 'success'
+        })
       }
     })
   }

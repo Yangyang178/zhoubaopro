@@ -5,6 +5,8 @@ const app = getApp()
 const { POSITION_LIST, API_CONFIG, AI_PARAMS, USAGE_LIMIT, STORAGE_KEYS } = require('../../utils/constants')
 const { getPositionPrompt, buildUserPrompt } = require('../../utils/prompts')
 const { showError, showSuccess } = require('../../utils/errorHandler')
+const { exporter, EXPORT_FORMAT } = require('../../utils/export')
+const { statisticsManager } = require('../../utils/statistics')
 
 Page({
   data: {
@@ -48,6 +50,10 @@ Page({
     lastClearedField: '',        // 最后清除的字段名
     lastClearedContent: '',      // 清除前的内容
     undoTimer: null,              // 倒计时定时器
+
+    // 导出功能相关
+    showExportModal: false,      // 是否显示导出选择器
+    generatedReportContent: null, // 当前生成的周报内容（用于导出）
 
     // DeepSeek API 配置（前端直连模式）
     // ⚠️ 安全提示：API Key 存储在前端代码中，仅用于个人测试或内部使用
@@ -761,6 +767,23 @@ Page({
         type: 'medium'
       })
 
+      // 记录本次生成到统计系统
+      try {
+        const wordCount = reportContent.length
+        const generationTime = parseFloat(((endTime - startTime) / 1000).toFixed(2))
+        const positionId = this.data.selectedPosition
+
+        statisticsManager.recordReport(positionId, wordCount, generationTime)
+
+        console.log('📊 统计数据已记录:', {
+          positionId,
+          wordCount,
+          generationTime
+        })
+      } catch (statsError) {
+        console.warn('⚠️ 记录统计数据失败（不影响主流程）:', statsError)
+      }
+
       console.log('========================================')
       console.log('✅ 全部流程完成！用户可以看到结果了')
       console.log('========================================')
@@ -943,5 +966,502 @@ Page({
         }
       }
     })
+  },
+
+  // ==================== 导出功能方法 ====================
+
+  /**
+   * 显示导出格式选择器
+   */
+  showExportMenu() {
+    if (!this.data.generatedReport) {
+      wx.showToast({
+        title: '请先生成周报',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+
+    this.setData({ showExportModal: true })
+    
+    // 保存当前周报内容到 data 中
+    this.setData({
+      generatedReportContent: this.data.generatedReport
+    })
+
+    // 震动反馈
+    wx.vibrateShort({
+      type: 'light'
+    })
+  },
+
+  /**
+   * 隐藏导出选择器
+   */
+  hideExportMenu() {
+    this.setData({ showExportModal: false })
+  },
+
+  /**
+   * 阻止模态层滚动穿透
+   */
+  preventModalTouchMove() {
+    return false
+  },
+
+  /**
+   * 导出为 Markdown 格式
+   */
+  async exportAsMarkdown() {
+    try {
+      wx.showLoading({ title: '生成中...' })
+      
+      const reportData = this._getReportDataForExport()
+      const markdown = exporter.toMarkdown(reportData)
+      
+      // 复制到剪贴板
+      await exporter.copyToClipboard(markdown)
+      
+      wx.hideLoading()
+      
+      // 隐藏选择器
+      this.hideExportMenu()
+      
+      // 显示成功提示和操作指引
+      wx.showModal({
+        title: '✅ Markdown 已复制',
+        content: '内容已复制到剪贴板，可直接粘贴到：\n\n• GitHub/Gitee Issues\n• Notion / 飞书文档\n• Typora 等编辑器\n\n是否保存为文件？',
+        confirmText: '保存文件',
+        cancelText: '知道了',
+        success: async (res) => {
+          if (res.confirm) {
+            await this._saveExportedFile(markdown, `周报_${this._getDateString()}.md`, 'text/markdown')
+          }
+        }
+      })
+      
+    } catch (error) {
+      wx.hideLoading()
+      console.error('导出 Markdown 失败:', error)
+      exporter.showError('导出失败，请重试')
+    }
+  },
+
+  /**
+   * 导出为纯文本格式
+   */
+  async exportAsText() {
+    try {
+      wx.showLoading({ title: '生成中...' })
+      
+      const reportData = this._getReportDataForExport()
+      const text = exporter.toText(reportData)
+      
+      // 复制到剪贴板
+      await exporter.copyToClipboard(text)
+      
+      wx.hideLoading()
+      this.hideExportMenu()
+      
+      wx.showModal({
+        title: '✅ 文本已复制',
+        content: '内容已复制到剪贴板，可直接粘贴到任意文本编辑器。\n\n是否保存为 .txt 文件？',
+        confirmText: '保存文件',
+        cancelText: '知道了',
+        success: async (res) => {
+          if (res.confirm) {
+            await this._saveExportedFile(text, `周报_${this._getDateString()}.txt`, 'text/plain')
+          }
+        }
+      })
+      
+    } catch (error) {
+      wx.hideLoading()
+      console.error('导出文本失败:', error)
+      exporter.showError('导出失败，请重试')
+    }
+  },
+
+  /**
+   * 导出为 Word 文档（生成带格式的文本）
+   */
+  async exportAsWord() {
+    try {
+      wx.showLoading({ title: '准备中...' })
+      
+      const reportData = this._getReportDataForExport()
+      const wordData = exporter.toWord(reportData)
+      
+      wx.hideLoading()
+      this.hideExportMenu()
+      
+      // 显示操作指引
+      let message = '【Markdown 格式已生成】\n\n'
+      wordData.instructions.forEach((inst, index) => {
+        message += `${index + 1}. ${inst}\n`
+      })
+      message += `\n${wordData.tip}`
+      
+      // 先复制到剪贴板
+      await exporter.copyToClipboard(wordData.text)
+      
+      wx.showModal({
+        title: '📘 Word 导出指南',
+        content: message,
+        confirmText: '已复制，去Word粘贴',
+        cancelText: '查看详情',
+        showCancel: true,
+        success: (res) => {
+          if (!res.confirm) {
+            // 用户想查看详情，显示完整内容预览
+            this._showExportPreview(wordData.text, 'markdown', wordData.filename)
+          }
+        }
+      })
+      
+    } catch (error) {
+      wx.hideLoading()
+      console.error('导出 Word 失败:', error)
+      exporter.showError('导出失败，请重试')
+    }
+  },
+
+  /**
+   * 导出为 PDF 文档（生成 HTML 用于打印）
+   */
+  async exportAsPDF() {
+    try {
+      wx.showLoading({ title: '生成HTML...' })
+      
+      const reportData = this._getReportDataForExport()
+      const pdfData = exporter.toPDF(reportData)
+      
+      wx.hideLoading()
+      this.hideExportMenu()
+      
+      let message = '【HTML 已生成，可用于转PDF】\n\n'
+      pdfData.instructions.forEach((inst, index) => {
+        message += `${index + 1}. ${inst}\n`
+      })
+      message += `\n${pdfData.tip}`
+      
+      wx.showModal({
+        title: '📕 PDF 导出指南',
+        content: message,
+        confirmText: '保存 HTML 文件',
+        cancelText: '了解详情',
+        success: async (res) => {
+          if (res.confirm) {
+            await this._saveExportedFile(pdfData.html, pdfData.filename, 'text/html')
+          } else {
+            this._showExportPreview(pdfData.html.substring(0, 500), 'html', pdfData.filename)
+          }
+        }
+      })
+      
+    } catch (error) {
+      wx.hideLoading()
+      console.error('导出 PDF 失败:', error)
+      exporter.showError('导出失败，请重试')
+    }
+  },
+
+  /**
+   * 导出为图片长图（Canvas 绘制）
+   */
+  async exportAsImage() {
+    try {
+      wx.showLoading({ title: '生成图片...', mask: true })
+      
+      const reportData = this._getReportDataForExport()
+      
+      // 使用 Canvas 绘制图片
+      await this._drawReportImage(reportData)
+      
+      wx.hideLoading()
+      this.hideExportMenu()
+      
+      wx.showModal({
+        title: '🖼️ 图片已生成',
+        content: '图片已保存到相册，可以：\n\n• 发送到微信群/朋友圈\n• 作为附件发送\n• 插入到文档中',
+        confirmText: '打开相册查看',
+        cancelText: '太好了',
+        success: (res) => {
+          if (res.confirm) {
+            // 打开相册（小程序限制，只能提示用户）
+            wx.showToast({
+              title: '请在相册中查看',
+              icon: 'none',
+              duration: 2000
+            })
+          }
+        }
+      })
+      
+    } catch (error) {
+      wx.hideLoading()
+      console.error('导出图片失败:', error)
+      
+      if (error.errMsg && error.errMsg.includes('auth deny')) {
+        wx.showModal({
+          title: '需要相册权限',
+          content: '保存图片需要相册权限，请在设置中开启后重试。',
+          showCancel: false,
+          confirmText: '我知道了'
+        })
+      } else {
+        exporter.showError('导出失败，请重试')
+      }
+    }
+  },
+
+  // ==================== 导出辅助方法 ====================
+
+  /**
+   * 获取用于导出的周报数据
+   * @private
+   */
+  _getReportDataForExport() {
+    const positionObj = POSITION_LIST.find(p => p.id === this.data.selectedPosition)
+    
+    return {
+      content: {
+        weeklyWork: this.data.weeklyWork || '',
+        nextPlan: this.data.nextPlan || '',
+        problems: this.data.problems || ''
+      },
+      position: positionObj ? positionObj.name : '',
+      date: new Date().toLocaleDateString('zh-CN'),
+      generatedContent: this.data.generatedReport || ''
+    }
+  },
+
+  /**
+   * 获取日期字符串
+   * @private
+   */
+  _getDateString() {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    return `${year}${month}${day}`
+  },
+
+  /**
+   * 保存导出的文件到本地
+   * @private
+   */
+  async _saveExportedFile(content, filename, type) {
+    try {
+      const result = await exporter.saveToLocal(content, filename, type)
+      
+      wx.showToast({
+        title: '文件已保存',
+        icon: 'success',
+        duration: 2000
+      })
+      
+      console.log('文件保存成功:', result.filePath)
+      
+    } catch (error) {
+      console.error('保存文件失败:', error)
+      wx.showModal({
+        title: '保存失败',
+        content: '无法保存文件到本地，但内容已复制到剪贴板，您可以手动粘贴保存。',
+        showCancel: false,
+        confirmText: '我知道了'
+      })
+    }
+  },
+
+  /**
+   * 显示导出内容预览（前500字符）
+   * @private
+   */
+  _showExportPreview(content, format, filename) {
+    const preview = content.length > 500 ? content.substring(0, 500) + '\n...（内容过长，已截断）' : content
+    
+    wx.showModal({
+      title: `${filename} 内容预览`,
+      content: preview,
+      confirmText: '复制完整内容',
+      cancelText: '关闭',
+      showCancel: true,
+      success: async (res) => {
+        if (res.confirm) {
+          await exporter.copyToClipboard(content)
+          wx.showToast({
+            title: '已复制完整内容',
+            icon: 'success',
+            duration: 1500
+          })
+        }
+      }
+    })
+  },
+
+  /**
+   * 使用 Canvas 绘制周报图片
+   * @private
+   */
+  _drawReportImage(reportData) {
+    return new Promise((resolve, reject) => {
+      const query = wx.createSelectorQuery()
+      query.select('#reportCanvas')
+      .fields({ node: true, size: true })
+      .exec((res) => {
+        if (!res[0] || !res[0].node) {
+          reject(new Error('Canvas 节点未找到'))
+          return
+        }
+        
+        const canvas = res[0].node
+        const ctx = canvas.getContext('2d')
+        
+        const dpr = wx.getSystemInfoSync().pixelRatio
+        const width = 750  // 设计稿宽度
+        const height = 1000 // 预估高度
+        
+        canvas.width = width * dpr
+        canvas.height = height * dpr
+        ctx.scale(dpr, dpr)
+        
+        // 设置画布背景
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, width, height)
+        
+        // 绘制标题区域背景
+        const gradient = ctx.createLinearGradient(0, 0, width, 160)
+        gradient.addColorStop(0, '#667eea')
+        gradient.addColorStop(1, '#764ba2')
+        ctx.fillStyle = gradient
+        ctx.fillRect(0, 0, width, 160)
+        
+        // 绘制标题文字
+        ctx.fillStyle = '#ffffff'
+        ctx.font = 'bold 36px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText('📋 工作周报', width / 2, 70)
+        
+        ctx.font = '24px sans-serif'
+        ctx.fillText(`${reportData.date} | ${reportData.position}`, width / 2, 120)
+        
+        // 绘制内容区域
+        let currentY = 190
+        const leftPadding = 40
+        const rightPadding = 40
+        const maxWidth = width - leftPadding - rightPadding
+        
+        // 本周工作
+        if (reportData.content.weeklyWork) {
+          currentY = this._drawSection(ctx, '📋 本周工作', reportData.content.weeklyWork, currentY, leftPadding, maxWidth)
+        }
+        
+        // 下周计划
+        if (reportData.content.nextPlan) {
+          currentY += 30
+          currentY = this._drawSection(ctx, '📅 下周计划', reportData.content.nextPlan, currentY, leftPadding, maxWidth)
+        }
+        
+        // 问题与困难
+        if (reportData.content.problems) {
+          currentY += 30
+          currentY = this._drawSection(ctx, '⚠️ 问题与困难', reportData.content.problems, currentY, leftPadding, maxWidth)
+        }
+        
+        // 绘制页脚
+        currentY += 50
+        ctx.fillStyle = '#999999'
+        ctx.font = '20px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText(`由 周报Pro 自动生成 | ${new Date().toLocaleString('zh-CN')}`, width / 2, currentY)
+        
+        // 更新实际高度并重新绘制（如果需要）
+        const actualHeight = currentY + 40
+        if (actualHeight > height) {
+          canvas.height = actualHeight * dpr
+          // 这里简化处理，实际可能需要重新绘制
+        }
+        
+        // 生成临时图片
+        setTimeout(() => {
+          wx.canvasToTempFilePath({
+            canvas: canvas,
+            success: (result) => {
+              // 保存到相册
+              wx.saveImageToPhotosAlbum({
+                filePath: result.tempFilePath,
+                success: () => resolve(),
+                fail: (err) => reject(err)
+              })
+            },
+            fail: (err) => reject(err)
+          })
+        }, 300)
+      })
+    })
+  },
+
+  /**
+   * 绘制内容区块
+   * @private
+   */
+  _drawSection(ctx, title, content, startY, leftPadding, maxWidth) {
+    // 标题
+    ctx.fillStyle = '#667eea'
+    ctx.font = 'bold 28px sans-serif'
+    ctx.textAlign = 'left'
+    ctx.fillText(title, leftPadding, startY + 28)
+    
+    // 分隔线
+    ctx.strokeStyle = '#e2e8f0'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(leftPadding, startY + 42)
+    ctx.moveTo(leftPadding + maxWidth, startY + 42)
+    ctx.stroke()
+    
+    // 内容（自动换行）
+    ctx.fillStyle = '#333333'
+    ctx.font = '24px sans-serif'
+    
+    const lines = this._wrapText(ctx, content, maxWidth)
+    let currentY = startY + 75
+    
+    lines.forEach(line => {
+      ctx.fillText(line, leftPadding, currentY)
+      currentY += 38
+    })
+    
+    return currentY
+  },
+
+  /**
+   * 文本自动换行处理
+   * @private
+   */
+  _wrapText(ctx, text, maxWidth) {
+    const lines = []
+    let currentLine = ''
+    
+    for (let char of text) {
+      const testLine = currentLine + char
+      const metrics = ctx.measureText(testLine)
+      
+      if (metrics.width > maxWidth && currentLine.length > 0) {
+        lines.push(currentLine)
+        currentLine = char
+      } else {
+        currentLine = testLine
+      }
+    }
+    
+    if (currentLine) {
+      lines.push(currentLine)
+    }
+    
+    return lines
   }
 })

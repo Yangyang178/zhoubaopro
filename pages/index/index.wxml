@@ -255,15 +255,98 @@
           <text class="action-icon">📤</text>
           <text>分享</text>
         </button>
-        <button class="result-action-btn view-history-btn" bindtap="goToHistory">
-          <text class="action-icon">�</text>
-          <text>查看历史</text>
+        <button class="result-action-btn export-btn-new" bindtap="showExportMenu">
+          <text class="action-icon">📥</text>
+          <text>导出</text>
+          <text class="export-arrow">▼</text>
         </button>
       </view>
     </view>
 
   </view>
 </scroll-view>
+
+<!-- 导出格式选择器（弹出层） -->
+<view class="export-modal {{showExportModal ? 'visible' : ''}}" wx:if="{{showExportModal}}" catchtouchmove="preventModalTouchMove">
+  <view class="export-modal-mask" bindtap="hideExportMenu"></view>
+  <view class="export-modal-content">
+    <!-- 标题 -->
+    <view class="export-modal-header">
+      <text class="export-modal-title">选择导出格式</text>
+      <view class="export-modal-close" bindtap="hideExportMenu">
+        <text class="close-icon">✕</text>
+      </view>
+    </view>
+    
+    <!-- 格式选项列表 -->
+    <view class="export-options">
+      <!-- Markdown -->
+      <view class="export-option" bindtap="exportAsMarkdown" hover-class="export-option-hover">
+        <view class="option-icon-wrapper markdown">
+          <text class="option-icon">📝</text>
+        </view>
+        <view class="option-info">
+          <text class="option-title">Markdown 文档</text>
+          <text class="option-desc">程序员友好，支持 GitHub/Notion</text>
+        </view>
+        <text class="option-arrow">›</text>
+      </view>
+      
+      <!-- 纯文本 -->
+      <view class="export-option" bindtap="exportAsText" hover-class="export-option-hover">
+        <view class="option-icon-wrapper text">
+          <text class="option-icon">📄</text>
+        </view>
+        <view class="option-info">
+          <text class="option-title">纯文本 (.txt)</text>
+          <text class="option-desc">通用格式，兼容性最强</text>
+        </view>
+        <text class="option-arrow">›</text>
+      </view>
+      
+      <!-- Word -->
+      <view class="export-option" bindtap="exportAsWord" hover-class="export-option-hover">
+        <view class="option-icon-wrapper word">
+          <text class="option-icon">📘</text>
+        </view>
+        <view class="option-info">
+          <text class="option-title">Word 文档</text>
+          <text class="option-desc">专业排版，适合正式场合</text>
+        </view>
+        <view class="option-badge pro">PRO</view>
+      </view>
+      
+      <!-- PDF -->
+      <view class="export-option" bindtap="exportAsPDF" hover-class="export-option-hover">
+        <view class="option-icon-wrapper pdf">
+          <text class="option-icon">📕</text>
+        </view>
+        <view class="option-info">
+          <text class="option-title">PDF 文档</text>
+          <text class="option-desc">跨平台，支持打印</text>
+        </view>
+        <view class="option-badge pro">PRO</view>
+      </view>
+      
+      <!-- 图片长图 -->
+      <view class="export-option" bindtap="exportAsImage" hover-class="export-option-hover">
+        <view class="option-icon-wrapper image">
+          <text class="option-icon">🖼️</text>
+        </view>
+        <view class="option-info">
+          <text class="option-title">图片长图</text>
+          <text class="option-desc">适合发朋友圈/微信群</text>
+        </view>
+        <text class="option-arrow">›</text>
+      </view>
+    </view>
+    
+    <!-- 底部提示 -->
+    <view class="export-modal-footer">
+      <text class="footer-tip">💡 免费版支持 Markdown/TXT/图片，升级 Pro 解锁 Word/PDF</text>
+    </view>
+  </view>
+</view>
 
 <!-- 底部导航栏（固定在页面底部） -->
 <view class="bottom-nav">
@@ -289,3 +372,6 @@
     <text class="nav-text">个人中心</text>
   </view>
 </view>
+
+<!-- 隐藏的 Canvas（用于导出图片） -->
+<canvas type="2d" id="reportCanvas" style="position: fixed; left: -9999px; top: -9999px; width: 750px; height: 1000px;"></canvas>
